@@ -155,6 +155,29 @@ Herdr's `config.toml`, and the `statusLine` wrapper in Claude's `settings.json`.
   Windows are shown separately, never summed or averaged.
 - **Token activity** comes from session records on this machine only, so it can be incomplete.
 
+## FAQ
+
+**Does it modify Herdr?**
+No. Herdr's code is untouched: this is a plugin. Setup only adds lines to Herdr's `config.toml`,
+each ending with `# usage-tracker`, and `uninstall --apply` removes exactly those lines.
+
+**Does it work without Claude Code?**
+Yes. Each provider is independent: use it with Codex, OpenCode Go or Grok alone, and accounts you
+don't have are simply not shown. Wrapping Claude's `statusLine` is only relevant if you use
+Claude Code.
+
+**Why Python 3.11 when macOS ships 3.9?**
+The plugin uses only the standard library, including `tomllib` (added in 3.11) to read TOML
+config, so there is nothing to `pip install`. Run `brew install python` once; the install stops
+with a clear message if no 3.11+ is found.
+
+**Does it read my credentials or conversations?**
+No — see [What it reads](#what-it-reads). The one exception is Grok, which is opt-in.
+
+**Why does a limit differ from what the provider's website shows?**
+Limits are fetched every 5 minutes by default (`refresh.interval_seconds`) and after an agent
+finishes a turn, so they can lag briefly. OpenCode Go's numbers are estimates from local costs.
+
 ## Update
 
 ```sh
@@ -183,6 +206,16 @@ It backs up each file first and removes only the lines marked `# usage-tracker`.
 - Collector log: `~/.local/state/herdr/plugins/herdr_agents_tracker/collector.log`.
 - Nothing in the tab bar? Herdr hides the summary when it does not fit beside the tabs — try a
   smaller `status.max_width` or a shorter `status.format`.
+
+## Roadmap
+
+Ideas, not promises — open an issue to vote for one or to help:
+
+- More providers: Gemini CLI, GitHub Copilot CLI, Cursor.
+- Live testing for OpenCode Go and Grok (only tested against fixtures so far).
+- Context meters for more agents than Claude Code and Codex.
+
+Adding a provider is one adapter module; [CONTRIBUTING.md](CONTRIBUTING.md) explains how.
 
 ## Development
 

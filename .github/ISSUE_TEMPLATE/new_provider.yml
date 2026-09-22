@@ -1,0 +1,30 @@
+name: New provider
+description: Ask for (or offer to build) support for another AI tool
+labels: [provider]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      placeholder: Gemini CLI, GitHub Copilot CLI, Cursor, ...
+    validations:
+      required: true
+  - type: textarea
+    id: limits
+    attributes:
+      label: Limits it has
+      description: Which windows or quotas the subscription has (5-hour, weekly, monthly credits, ...).
+  - type: textarea
+    id: source
+    attributes:
+      label: Where the numbers could come from
+      description: |
+        A CLI command, a local file or database, a status line, an endpoint the tool itself uses.
+        The plugin prefers asking the tool itself, and never reads browser cookies or the keychain.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Helping out
+      options:
+        - label: I can test it against a real account
+        - label: I'd like to write the adapter (see CONTRIBUTING.md)

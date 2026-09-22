@@ -1,0 +1,36 @@
+name: Bug report
+description: Something shows the wrong number, an error, or nothing at all
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead. A screenshot of the tab bar or dashboard helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      multiple: true
+      options: [Claude Code, Codex, OpenCode Go, Grok, Not provider-specific]
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        Output of **Usage: show diagnostics** (or `bin/usage-tracker diagnostics`). It never shows
+        credentials, but check it before pasting. The last lines of
+        `~/.local/state/herdr/plugins/herdr_agents_tracker/collector.log` help too.
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Herdr version, plugin version, OS and Python (`python3 --version`)
+      placeholder: Herdr 0.8.2 · plugin 0.1.0 · macOS 15 · Python 3.13
+    validations:
+      required: true

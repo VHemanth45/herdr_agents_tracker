@@ -1,5 +1,7 @@
 # Usage Tracker for Herdr
 
+**Every account, every limit window, every agent — and not one credential read.**
+
 [![tests](https://github.com/OWNER/herdr_agents_tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/OWNER/herdr_agents_tracker/actions/workflows/tests.yml)
 [![Herdr 0.8.2+](https://img.shields.io/badge/Herdr-0.8.2%2B-8a6fbf)](https://herdr.dev)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab)](https://www.python.org/downloads/)
@@ -8,9 +10,9 @@
 See how much of your AI subscriptions you have used, without leaving Herdr: in the tab bar, under
 each agent, and in a dashboard. Supports Claude Code, Codex, OpenCode Go and Grok.
 
-![Herdr with the usage summary in the tab bar, context meters in the Agents panel and the dashboard open](docs/herdr-window.png)
+![Four Claude Code panes in one space, with the usage summary in Herdr's tab bar](docs/panes.png)
 
-*Screenshots use demo accounts and made-up numbers.*
+*Screenshots use demo accounts and made-up numbers; the agent panes are mock sessions.*
 
 ## What it shows
 

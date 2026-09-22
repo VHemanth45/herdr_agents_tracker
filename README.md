@@ -2,7 +2,7 @@
 
 **Every account, every limit window, every agent — and not one credential read.**
 
-[![tests](https://github.com/OWNER/herdr_agents_tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/OWNER/herdr_agents_tracker/actions/workflows/tests.yml)
+[![tests](https://github.com/VHemanth45/herdr_agents_tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/VHemanth45/herdr_agents_tracker/actions/workflows/tests.yml)
 [![Herdr 0.8.2+](https://img.shields.io/badge/Herdr-0.8.2%2B-8a6fbf)](https://herdr.dev)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2f8f4e)](LICENSE)
@@ -47,8 +47,11 @@ credentials are read — see [What it reads](#what-it-reads).
 ## Install
 
 ```sh
-herdr plugin install OWNER/herdr_agents_tracker                   # shows a preview; confirm it
-herdr plugin action invoke setup --plugin herdr_agents_tracker    # setup guide, applies on "y"
+# 1. Install the plugin (shows a preview; confirm it)
+herdr plugin install VHemanth45/herdr_agents_tracker
+
+# 2. Run the setup guide (shows its plan; applies when you answer "y")
+herdr plugin action invoke setup --plugin herdr_agents_tracker
 ```
 
 Setup shows its plan first, then:
@@ -61,8 +64,16 @@ Setup shows its plan first, then:
 - reloads Herdr's config — Herdr is not restarted and running agents are untouched.
 
 Every line it writes ends with `# usage-tracker`, each file is backed up first, and running setup
-again changes nothing. From a clone: `herdr plugin link /path/to/clone`, then
-`bin/usage-tracker setup --claude-statusline --apply`.
+again changes nothing.
+
+To install from a clone instead:
+
+```sh
+git clone https://github.com/VHemanth45/herdr_agents_tracker.git
+cd herdr_agents_tracker
+herdr plugin link "$PWD"
+bin/usage-tracker setup --claude-statusline --apply
+```
 
 ## Use
 
@@ -147,8 +158,7 @@ Herdr's `config.toml`, and the `statusLine` wrapper in Claude's `settings.json`.
 ## Update
 
 ```sh
-herdr plugin install OWNER/herdr_agents_tracker                 # latest
-herdr plugin install OWNER/herdr_agents_tracker --ref v0.1.0    # a specific version
+herdr plugin install VHemanth45/herdr_agents_tracker
 ```
 
 Your settings are kept, and setup can be re-run safely. [CHANGELOG.md](CHANGELOG.md) lists what

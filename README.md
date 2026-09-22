@@ -10,9 +10,9 @@
 See how much of your AI subscriptions you have used, without leaving Herdr: in the tab bar, under
 each agent, and in a dashboard. Supports Claude Code, Codex, OpenCode Go and Grok.
 
-![Four Claude Code panes in one space, with the usage summary in Herdr's tab bar](docs/panes.png)
+![Herdr with the usage summary in the tab bar, context meters in the Agents panel and the dashboard open](docs/herdr-window.png)
 
-*Screenshots use demo accounts and made-up numbers; the agent panes are mock sessions.*
+*Screenshots use demo accounts and made-up numbers.*
 
 ## What it shows
 

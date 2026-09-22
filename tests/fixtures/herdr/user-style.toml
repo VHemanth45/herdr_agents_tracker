@@ -1,0 +1,10 @@
+[ui]
+status_indicators = "symbols"
+
+show_agent_labels_on_pane_borders = true
+[theme]
+name = "gruvbox"
+auto_switch = false
+
+[ui.toast]
+delivery = "system"

@@ -1,0 +1,1 @@
+{"config":{"creditUsagePercent":12.5,"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY","start":"2026-09-20T00:00:00Z","end":"2026-09-27T00:00:00Z"},"billingPeriodStart":"2026-09-01T00:00:00Z","billingPeriodEnd":"2026-10-01T00:00:00Z","subscriptionTier":"SuperGrok","monthlyLimit":{"val":"200"},"used":{"val":"50"}}}

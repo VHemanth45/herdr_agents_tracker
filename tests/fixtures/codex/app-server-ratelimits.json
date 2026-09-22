@@ -1,0 +1,4 @@
+{"rateLimits":{"limitId":"codex","primary":{"usedPercent":63,"windowDurationMins":10080,"resetsAt":1790574924},"secondary":null,"planType":"prolite"},
+ "rateLimitsByLimitId":{"codex":{"limitId":"codex","primary":{"usedPercent":20,"windowDurationMins":300,"resetsAt":1790080000},"secondary":{"usedPercent":63,"windowDurationMins":10080,"resetsAt":1790574924},"planType":"prolite"},
+   "codex_mini":{"limitId":"codex_mini","limitName":"GPT-5 mini","primary":{"usedPercent":5,"windowDurationMins":10080,"resetsAt":1790574924}}},
+ "accountId":"fixture-account"}

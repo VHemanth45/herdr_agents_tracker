@@ -1,0 +1,7 @@
+onboarding = false
+
+[theme]
+name = "dracula"
+
+[ui.toast]
+delivery = "off"

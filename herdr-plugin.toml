@@ -1,0 +1,79 @@
+id = "herdr_agents_tracker"
+name = "Usage Tracker"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "AI account limits in the tab bar, a context meter per agent, low-limit alerts and a usage dashboard (Claude, Codex, OpenCode Go, Grok)"
+platforms = ["macos", "linux"]
+
+# Checked before Herdr registers a GitHub install: the launcher prints the version, or says that
+# no Python 3.11+ was found (macOS ships 3.9) and stops the install. Build commands run in the
+# checkout and get no plugin env; if the launcher is not there, the check is skipped rather than
+# failing an install for an unrelated reason.
+[[build]]
+command = ["/bin/sh", "-c", "if [ -x bin/usage-tracker ]; then exec bin/usage-tracker --version; fi"]
+
+# The tab-bar summary itself is a ui.tab_bar_right command entry that `usage-tracker setup` adds
+# to Herdr's config.toml; plugins cannot declare tab-bar entries.
+
+# One-shot warm-up: starts a detached background refresh and returns immediately.
+[[startup]]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" refresh --background"]
+
+# Herdr forgets pane tokens when it restarts: put the Codex context meters back.
+[[startup]]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" agent-event --all"]
+
+# When an agent finishes a turn: re-read that provider's limits (at most once a minute per provider)
+# and, for Codex, the pane's context meter in the Agents panel.
+[[events]]
+on = "pane.agent_status_changed"
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" agent-event"]
+
+[[actions]]
+id = "open-dashboard"
+title = "Usage: open dashboard"
+contexts = ["global", "workspace", "pane"]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" open dashboard"]
+
+[[actions]]
+id = "refresh"
+title = "Usage: refresh now"
+contexts = ["global", "workspace", "pane"]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" refresh --force"]
+
+[[actions]]
+id = "diagnostics"
+title = "Usage: show diagnostics"
+contexts = ["global", "workspace", "pane"]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" open diagnostics"]
+
+[[actions]]
+id = "setup"
+title = "Usage: setup and configuration guide"
+contexts = ["global", "workspace", "pane"]
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" open setup"]
+
+# Popups are session-modal and leave the tab layout untouched; they close when the command exits.
+[[panes]]
+id = "dashboard"
+title = "Usage"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" dashboard"]
+
+[[panes]]
+id = "diagnostics"
+title = "Usage diagnostics"
+placement = "popup"
+width = "90%"
+height = "85%"
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" diagnostics --pause"]
+
+[[panes]]
+id = "setup"
+title = "Usage setup"
+placement = "popup"
+width = "90%"
+height = "85%"
+command = ["/bin/sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/usage-tracker\" setup --interactive"]

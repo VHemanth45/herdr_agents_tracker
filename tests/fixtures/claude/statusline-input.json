@@ -1,0 +1,1 @@
+{"session_id":"fixture","model":{"display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":17,"resets_at":1790080000},"seven_day":{"used_percentage":41.6,"resets_at":1790500000},"seven_day_opus":{"used_percentage":8,"resets_at":1790500000}}}

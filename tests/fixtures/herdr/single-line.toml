@@ -1,0 +1,2 @@
+[ui]
+tab_bar_right = [{ type = "hostname" }]  # host

@@ -1,0 +1,21 @@
+# my herdr config
+[keys]
+prefix = "ctrl+a"
+toggle_sidebar = "prefix+u"   # I use u for the sidebar
+
+[[keys.command]]
+key = "prefix+alt+g"
+type = "popup"
+command = "lazygit"
+
+[ui]
+tab_bar_position = "top"
+tab_bar_right = [
+  { type = "zoom" },
+  { type = "datetime", format = "%H:%M" }  # clock, no trailing comma
+  # a comment inside the array: ] { tricky
+]
+tab_bar_right_separator = " · "
+
+[theme]
+name = "nord"

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Launch the usage-tracker CLI with Python 3.11+.
+# Herdr runs tab-bar and key commands with a minimal PATH, so known interpreter
+# locations are probed explicitly instead of trusting `python3` on PATH.
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+for py in "${USAGE_TRACKER_PYTHON:-}" /opt/homebrew/bin/python3 /usr/local/bin/python3 "$(command -v python3 2>/dev/null)" /usr/bin/python3; do
+  [ -n "$py" ] && [ -x "$py" ] || continue
+  "$py" -I -S -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null || continue
+  # -P keeps the caller's working directory off sys.path.
+  PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" exec "$py" -P -m usage_tracker "$@"
+done
+if [ "$1" = status ]; then
+  # A failing tab-bar command is hidden, so report instead (in the first entry only).
+  echo "Usage: Python 3.11+ not found"
+  [ "${3:-1}" = 1 ] && exit 0
+  exit 1
+fi
+cat >&2 <<'MSG'
+usage-tracker needs Python 3.11 or newer, and none was found: not in /opt/homebrew/bin,
+/usr/local/bin, on PATH, or at /usr/bin/python3 (macOS still ships Python 3.9).
+Install one (macOS: brew install python) or point USAGE_TRACKER_PYTHON at an interpreter.
+MSG
+exit 1

@@ -1,0 +1,80 @@
+# Example Usage Tracker config. Copy what you need to
+#   ~/.config/herdr/plugins/config/herdr_agents_tracker/config.toml
+# Every setting is optional. No credentials ever go in this file.
+
+[status]
+# Accounts shown at the top-right, in this order (profile ids). Empty = every enabled profile.
+# Accounts left out still refresh and appear in the dashboard (here: opencode).
+order = ["claude", "claude-work", "codex"]
+# "compact" = one window per account (Claude 18% 1d12h: % used, then time until reset),
+# "detailed" = every window, with the bar for the first one (Claude 9% 3h25m | 18% 1d12h | 0% Fable),
+# "split" = the 5h and weekly windows in one bar, top half 5h, bottom half weekly
+#           (Claude ██▀▀▀▀░░ 81% 1h10m | 24% 3d2h). Profiles can override it.
+format = "compact"
+# Window shown in compact mode: "max" (highest % used, the default), "session" (5h),
+# "weekly" (7d), "monthly" (30d), or any window id listed in Usage diagnostics.
+window = "max"
+# Progress bar before each percentage. "blocks" is a block bar (██████░░░░) in the tab bar's
+# text color: Herdr's tab bar shows plain text only, so ANSI colors are not an option.
+# "color" draws emoji squares instead: 🟩 under 70% used, 🟨 from 70%, 🟥 from 90%.
+# "none" hides it.
+bar = "blocks"
+bar_width = 10           # columns (an emoji square takes two)
+# Room for all accounts together, in columns. Herdr hides the whole summary when it does not fit
+# beside the tabs, so with less room model limits (Fable), then reset times, then bars are left
+# out, and only then is text cut with "…". Short labels ("P", "W") leave room for more detail.
+max_width = 120
+
+[alerts]
+# A Herdr notification when a limit passes one of these (% used), once per threshold and window.
+# [] turns alerts off. They show as Herdr's [ui.toast] delivery setting says (off by default there).
+thresholds = [80, 95]
+
+[context]
+# Symbol before each agent's context meter in Herdr's Agents panel (e.g. "⛁ 57% 565k"): the
+# one Claude Code's /context uses. With a Nerd Font, "\uEACE" is its database icon.
+icon = "⛁"
+
+[refresh]
+interval_seconds = 300   # how often live limits are re-read in the background
+stale_seconds = 1800     # older data is shown with its age, e.g. "(3h00m old)"
+
+# One [[profiles]] entry per account. `dir` is that account's own config directory,
+# so accounts of the same provider never share caches, history, or refresh state.
+# Without any [[profiles]], the default directories below are discovered automatically.
+
+[[profiles]]
+id = "claude"             # a-z, 0-9, _ or -; used for state files
+provider = "claude"
+label = "Claude"
+dir = "~/.claude"         # CLAUDE_CONFIG_DIR of this account
+format = "split"          # per-account override of status.format: 5h and weekly in one bar
+icon = "\uEC82"           # tab-bar logo: Nerd Font Claude logo (default "✻"; "" shows the label)
+
+[[profiles]]
+id = "claude-work"
+provider = "claude"
+label = "Work"
+dir = "~/.claude-work"    # a second account: launch it with CLAUDE_CONFIG_DIR=~/.claude-work claude
+window = "session"        # per-account override of status.window
+
+[[profiles]]
+id = "codex"
+provider = "codex"
+label = "Codex"
+dir = "~/.codex"          # CODEX_HOME of this account
+icon = "\uEC81"           # Nerd Font OpenAI logo (default ">_")
+
+[[profiles]]
+id = "opencode"
+provider = "opencode"
+label = "OpenCode"
+dir = "~/.local/share/opencode"   # holds opencode.db
+# enabled = false         # turns an account off everywhere (tab bar, dashboard, refresh)
+
+# Grok is never auto-enabled because it reads the Grok CLI's stored sign-in token.
+# [[profiles]]
+# id = "grok"
+# provider = "grok"
+# label = "Grok"
+# dir = "~/.grok"

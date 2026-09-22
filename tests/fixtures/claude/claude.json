@@ -1,0 +1,2 @@
+{"oauthAccount":{"accountUuid":"00000000-0000-4000-8000-000000000001","organizationType":"claude_max","organizationRateLimitTier":"default_claude_max_5x"},
+ "cachedUsageUtilization":{"fetchedAtMs":1790000000000,"accountUuid":"00000000-0000-4000-8000-000000000001","utilization":{"five_hour":{"utilization":22.0,"resets_at":"2026-09-22T15:30:00.000Z"},"seven_day":{"utilization":40.0,"resets_at":"2026-09-27T09:00:00.000Z"},"seven_day_sonnet":{"utilization":null,"resets_at":null}}}}

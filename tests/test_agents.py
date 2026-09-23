@@ -81,6 +81,20 @@ class Claude(IsolatedTest):
             agents.show("w1:p1", 59.2, 118483, self.state, "⛁", NOW, window=200_000)  # seen by the statusline bridge
         self.assertEqual(self.context(), (100 * 118483 / 200_000, 118483))
 
+    def test_compact_shows_the_size_it_left_until_the_next_reply(self):
+        self.write(268565)
+        boundary = {"type": "system", "subtype": "compact_boundary",
+                    "compactMetadata": {"trigger": "manual", "preTokens": 268565, "postTokens": 15719}}
+        summary = {"type": "user", "isCompactSummary": True, "message": {"role": "user", "content": "summary"}}
+        with self.transcript.open("a") as f:
+            f.write(json.dumps(boundary) + "\n" + json.dumps(summary) + "\n")
+        self.assertEqual(agents.claude_tokens(self.transcript), 15719)
+        reply = {"type": "assistant", "message": {"model": "claude-opus-5", "usage": {
+            "input_tokens": 5, "cache_creation_input_tokens": 20000, "cache_read_input_tokens": 0}}}
+        with self.transcript.open("a") as f:
+            f.write(json.dumps(reply) + "\n")
+        self.assertEqual(agents.claude_tokens(self.transcript), 20005)
+
     def test_a_finished_turn_skips_the_claude_check_while_the_statusline_is_fresh(self):
         """The bridge already reported the 5h and weekly windows, so only Fable would be new."""
         event = {"agent": "claude", "pane_id": "w1:p1", "agent_status": "done"}
@@ -96,6 +110,19 @@ class Claude(IsolatedTest):
 
 
 class Codex(IsolatedTest):
+    def test_compaction_empties_the_meter_until_the_next_request(self):
+        path = rollout(self.tmp / "rollout-2026-09-22T10-00-00-main.jsonl")
+        after = [{"type": "compacted", "payload": {"message": ""}},
+                 {"type": "event_msg", "payload": {"type": "token_count", "info": {
+                     "last_token_usage": {"input_tokens": 0}, "model_context_window": 258400}}}]
+        with open(path, "a") as f:
+            f.write("".join(json.dumps(line) + "\n" for line in after))
+        self.assertEqual(agents.last_context(path), (0.0, 0))
+        rollout(self.tmp / "later.jsonl", counts=((12000, 258400),))
+        with open(path, "a") as f:
+            f.write(open(self.tmp / "later.jsonl").read().split("\n", 1)[1])
+        self.assertEqual(agents.last_context(path), (100 * 12000 / 258400, 12000))
+
     def test_latest_token_count_of_the_main_session(self):
         sessions = self.tmp / "sessions"
         sessions.mkdir()

@@ -20,7 +20,8 @@ from pathlib import Path
 from . import PLUGIN_ID, cache, config, fmt
 
 MARK = "# usage-tracker"
-PREFERRED_KEYS = ("prefix+u", "prefix+alt+u", "prefix+shift+u", "prefix+y")
+PREFERRED_KEYS = ("prefix+u", "prefix+alt+u", "prefix+y")
+REFRESH_KEYS = ("prefix+shift+u", "prefix+shift+y")  # refresh every account now
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER = ROOT / "bin" / "usage-tracker"
 HEADER = re.compile(r"^\s*\[\[?[^\[\]]+\]\]?\s*(#.*)?$")
@@ -108,6 +109,10 @@ def status_entries(interval):
 
 def key_entry(key):
     return {"key": key, "type": "shell", "command": command("open", "dashboard")}
+
+
+def refresh_key_entry(key):
+    return {"key": key, "type": "shell", "command": command("refresh", "--force", "--background")}
 
 
 def toml_value(value):
@@ -272,15 +277,25 @@ def plan_herdr(text, interval=30, key=None, defaults=None):
             new = new.rstrip("\n") + ("\n\n" if new.strip() else "") + f"[ui]  {MARK}\n" + "".join(ui_lines)
         else:
             new = "".join(lines[:ui_start + 1] + ui_lines + lines[ui_start + 1:])
-    key = check_key(base, key, defaults if defaults is not None else default_bindings())
-    command_line = toml_value(key_entry(key)["command"])
-    new = (new.rstrip("\n") + "\n\n" + f"[[keys.command]]  {MARK}\n" + f"key = {toml_value(key)}  {MARK}\n"
-           + f'type = "shell"  {MARK}\n' + f"command = {command_line}  {MARK}\n")
+    defaults = defaults if defaults is not None else default_bindings()
+    key = check_key(base, key, defaults)
+    bindings = [key_entry(key)]
+    used = used_keys(base, defaults)
+    refresh = next((k for k in REFRESH_KEYS if k not in used and k != key.strip().lower()), None)
+    if refresh:
+        bindings.append(refresh_key_entry(refresh))
+        notes.append(f"{refresh} refreshes every account now")
+    else:
+        notes.append(f"{', '.join(REFRESH_KEYS)} are bound, so there is no refresh shortcut; "
+                     "use the Usage: refresh now action")
+    for binding in bindings:
+        new = (new.rstrip("\n") + "\n\n" + f"[[keys.command]]  {MARK}\n" + f"key = {toml_value(binding['key'])}  {MARK}\n"
+               + f'type = "shell"  {MARK}\n' + f"command = {toml_value(binding['command'])}  {MARK}\n")
     expected = copy.deepcopy(base)
     expected.setdefault("ui", {}).setdefault("tab_bar_position", "top")
     expected["ui"].setdefault("tab_bar_right_separator", SEPARATOR)
     expected["ui"]["tab_bar_right"] = list(ui.get("tab_bar_right", [])) + entries
-    expected.setdefault("keys", {}).setdefault("command", []).append(key_entry(key))
+    expected.setdefault("keys", {}).setdefault("command", []).extend(bindings)
     sidebar = ui.get("sidebar", {})
     agents = sidebar.get("agents", {}) if isinstance(sidebar, dict) else None
     rows = agents.get("rows", AGENT_ROWS) if isinstance(agents, dict) else None
@@ -458,7 +473,7 @@ def setup(apply=False, claude_statusline=False, key=None, interval=30, out=print
     steps = []
     if new_text != text:
         steps.append(f"Herdr config {path}: top-right usage entries (one per account, every {interval}s), "
-                     f"context meters in the Agents panel and shortcut {key}")
+                     f"context meters in the Agents panel, dashboard shortcut {key} and a refresh shortcut")
     registration = plugin_registration()
     if not registration or Path(registration.get("plugin_root", "")) != ROOT:
         steps.append(f"register the plugin: herdr plugin link {ROOT}")

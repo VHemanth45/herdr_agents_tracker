@@ -88,14 +88,19 @@ def claude_context(pane_id, cfg, state_dir):
 
 def claude_tokens(path):
     """Tokens in context at the transcript's latest reply: its input, cache writes and cache reads,
-    as Claude Code's context_window counts them."""
+    as Claude Code's context_window counts them. After a /compact with no reply since, the size the
+    compaction left (its compact_boundary's postTokens)."""
     for line in reversed(tail(path)):
-        if b'"usage"' not in line or b'"assistant"' not in line:
+        compacted = b'"compact_boundary"' in line
+        if not compacted and (b'"usage"' not in line or b'"assistant"' not in line):
             continue
         try:
             record = json.loads(line)
         except ValueError:
             continue
+        if compacted and record.get("subtype") == "compact_boundary" and not record.get("isSidechain"):
+            post = (record.get("compactMetadata") or {}).get("postTokens")
+            return post if isinstance(post, int) and post > 0 else None
         message = record.get("message") or {}
         usage = message.get("usage") or {}
         if record.get("type") == "assistant" and usage and not record.get("isSidechain") and message.get("model") != "<synthetic>":
@@ -153,8 +158,16 @@ def subagent(path):
 
 def last_context(path):
     """The context in use at the session's latest token count: the last request's input tokens
-    (cached ones included) and their share of model_context_window."""
+    (cached ones included) and their share of model_context_window. After a compaction with no
+    request since, Codex reports no tokens in use, and so does the meter."""
     for line in reversed(tail(path)):
+        if b'"compacted"' in line:
+            try:
+                if json.loads(line).get("type") == "compacted":
+                    return 0.0, 0
+            except ValueError:
+                pass
+            continue
         if b'"token_count"' not in line:
             continue
         try:

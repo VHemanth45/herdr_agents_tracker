@@ -3,6 +3,13 @@
 Notable changes per release. Versions follow [semantic versioning](https://semver.org):
 before 1.0, a minor bump may change config keys or state layout, and the release notes say so.
 
+## Unreleased
+
+- **Refresh shortcut**: setup adds `prefix+shift+u` (or `prefix+shift+y` if that is taken) to
+  re-read every account now. Re-run setup to get it.
+- **Context meter after a compact**: a compacted Claude Code session shows the size the compact
+  left, and a compacted Codex session shows an empty context, instead of the old reading.
+
 ## 0.1.0 — 2026-09-22
 
 First release.

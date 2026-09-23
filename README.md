@@ -56,7 +56,8 @@ herdr plugin action invoke setup --plugin herdr_agents_tracker
 
 Setup shows its plan first, then:
 
-- adds three `tab_bar_right` command entries and a `prefix+u` shortcut to Herdr's `config.toml`;
+- adds three `tab_bar_right` command entries, a `prefix+u` dashboard shortcut and a
+  `prefix+shift+u` refresh shortcut to Herdr's `config.toml`;
 - adds the context meter to `[ui.sidebar.agents] rows`;
 - writes a starter plugin config listing the accounts it found;
 - wraps your Claude Code `statusLine` command so Claude's own limit numbers are saved (your
@@ -86,6 +87,8 @@ bin/usage-tracker setup --claude-statusline --apply
 
   ![Dashboard, scrolled: totals by account, backend, model and project](docs/dashboard-history.png)
 
+- **Refresh now**: `prefix+shift+u` re-reads every account in the background; the tab bar shows
+  the new numbers at its next update (within 30 s). `r` does the same inside the dashboard.
 - **Actions**: open dashboard · refresh now · show diagnostics · setup guide.
 - **CLI**: `bin/usage-tracker status | refresh | dashboard | diagnostics | setup | uninstall`.
 - **Refreshing**: the tab bar reads a local cache every 30 s; limits are re-read every 5 minutes,

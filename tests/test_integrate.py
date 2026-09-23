@@ -73,6 +73,20 @@ class HerdrConfig(unittest.TestCase):
         self.assertEqual(tomllib.loads(text)["ui"]["tab_bar_position"], "bottom")
         self.assertTrue(any("bottom" in note for note in notes))
 
+    def test_refresh_shortcut_is_added_when_free(self):
+        text, key, notes = self.plan("user-style.toml")
+        keys = ours(tomllib.loads(text))[1]
+        self.assertEqual([k["key"] for k in keys], ["prefix+u", "prefix+shift+u"])
+        self.assertTrue(keys[1]["command"].endswith("bin/usage-tracker refresh --force --background"))
+        self.assertIn("prefix+shift+u refreshes every account now", notes)
+        taken = fixture("user-style.toml").replace("[ui]", '[keys]\nzoom = "prefix+shift+u"\n\n[ui]', 1)
+        text, _, _ = plan_herdr(taken, defaults=DEFAULTS)
+        self.assertEqual([k["key"] for k in ours(tomllib.loads(text))[1]], ["prefix+u", "prefix+shift+y"])
+        taken = taken.replace('zoom = "prefix+shift+u"', 'zoom = "prefix+shift+u"\nhelp = "prefix+shift+y"')
+        text, _, notes = plan_herdr(taken, defaults=DEFAULTS)
+        self.assertEqual(len(ours(tomllib.loads(text))[1]), 1)
+        self.assertTrue(any("no refresh shortcut" in note for note in notes))
+
     def test_requested_shortcut_must_be_free(self):
         with self.assertRaises(SetupError):
             self.plan("user-style.toml", key="prefix+z")

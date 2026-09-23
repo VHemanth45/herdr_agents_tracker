@@ -88,7 +88,10 @@ class Claude(IsolatedTest):
         summary = {"type": "user", "isCompactSummary": True, "message": {"role": "user", "content": "summary"}}
         with self.transcript.open("a") as f:
             f.write(json.dumps(boundary) + "\n" + json.dumps(summary) + "\n")
-        self.assertEqual(agents.claude_tokens(self.transcript), 15719)
+        self.assertEqual(agents.claude_tokens(self.transcript), 50000 + 15719)  # first reply: prompt, tools, memory
+        after = {"transcript_path": str(self.transcript),  # what Claude Code sends the statusline after a /compact
+                 "context_window": {"used_percentage": None, "current_usage": None, "context_window_size": 1_000_000}}
+        self.assertEqual(agents.from_statusline(after), (100 * 65719 / 1_000_000, 65719))
         reply = {"type": "assistant", "message": {"model": "claude-opus-5", "usage": {
             "input_tokens": 5, "cache_creation_input_tokens": 20000, "cache_read_input_tokens": 0}}}
         with self.transcript.open("a") as f:

@@ -56,11 +56,16 @@ def show(pane_id, pct, tokens, state_dir, icon, now=None, window=None):
 
 
 def from_statusline(payload):
-    """(% of the context window used, tokens) from Claude Code's statusline input, or None
-    before the session's first response."""
+    """(% of the context window used, tokens) from Claude Code's statusline input. Right after a
+    /compact Claude Code sends no usage, so the transcript it names is read instead; None before
+    the session's first response."""
     window = (payload or {}).get("context_window") or {}
     pct = window.get("used_percentage")
-    return (float(pct), int(window.get("total_input_tokens") or 0)) if isinstance(pct, (int, float)) else None
+    if isinstance(pct, (int, float)):
+        return float(pct), int(window.get("total_input_tokens") or 0)
+    tokens = claude_tokens(payload["transcript_path"]) if (payload or {}).get("transcript_path") else None
+    size = window.get("context_window_size")
+    return (100 * tokens / size if size else None, tokens) if tokens else None
 
 
 def pids(pane_id, name):
@@ -88,8 +93,11 @@ def claude_context(pane_id, cfg, state_dir):
 
 def claude_tokens(path):
     """Tokens in context at the transcript's latest reply: its input, cache writes and cache reads,
-    as Claude Code's context_window counts them. After a /compact with no reply since, the size the
-    compaction left (its compact_boundary's postTokens)."""
+    as Claude Code's context_window counts them.
+
+    After a /compact with no reply since, an estimate: the compact_boundary's postTokens counts only
+    the kept conversation, so the session's first reply is added for the system prompt, tools and
+    memory it always carries (within about 10% of the next reply in real sessions)."""
     for line in reversed(tail(path)):
         compacted = b'"compact_boundary"' in line
         if not compacted and (b'"usage"' not in line or b'"assistant"' not in line):
@@ -99,12 +107,36 @@ def claude_tokens(path):
         except ValueError:
             continue
         if compacted and record.get("subtype") == "compact_boundary" and not record.get("isSidechain"):
-            post = (record.get("compactMetadata") or {}).get("postTokens")
-            return post if isinstance(post, int) and post > 0 else None
-        message = record.get("message") or {}
-        usage = message.get("usage") or {}
-        if record.get("type") == "assistant" and usage and not record.get("isSidechain") and message.get("model") != "<synthetic>":
-            return sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+            post, base = (record.get("compactMetadata") or {}).get("postTokens"), first_reply(path)
+            return post + base if isinstance(post, int) and post > 0 and base else None
+        if reply_tokens(record):
+            return reply_tokens(record)
+    return None
+
+
+def reply_tokens(record):
+    message = record.get("message") or {}
+    usage = message.get("usage") or {}
+    if record.get("type") == "assistant" and usage and not record.get("isSidechain") and message.get("model") != "<synthetic>":
+        return sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+    return None
+
+
+def first_reply(path):
+    """Tokens in context at the session's first reply, from the start of its transcript."""
+    try:
+        with open(path, "rb") as f:
+            lines = f.read(TAIL).splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if b'"usage"' in line and b'"assistant"' in line:
+            try:
+                tokens = reply_tokens(json.loads(line))
+            except ValueError:
+                continue
+            if tokens:
+                return tokens
     return None
 
 

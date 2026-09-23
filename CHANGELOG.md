@@ -7,8 +7,10 @@ before 1.0, a minor bump may change config keys or state layout, and the release
 
 - **Refresh shortcut**: setup adds `prefix+shift+u` (or `prefix+shift+y` if that is taken) to
   re-read every account now. Re-run setup to get it.
-- **Context meter after a compact**: a compacted Claude Code session shows the size the compact
-  left, and a compacted Codex session shows an empty context, instead of the old reading.
+- **Context meter after a compact**: it no longer keeps the pre-compact reading. Claude Code
+  panes update as soon as the compact finishes, with an estimate (the kept conversation plus the
+  session's fixed prompt and tools) until the next reply; Codex panes show an empty context until
+  the next request, as Codex itself reports.
 
 ## 0.1.0 — 2026-09-22
 

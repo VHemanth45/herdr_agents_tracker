@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import subprocess
 import time
@@ -126,7 +127,7 @@ dir = "{self.tmp}/bad"
         (self.state / "cache.json").write_text("{corrupt")
         from usage_tracker import __main__ as cli
         with mock.patch.object(cache, "spawn") as spawn, mock.patch("sys.stdout") as out:
-            self.assertEqual(cli.cmd_status(argparse.Namespace(part=None)), 0)
+            self.assertEqual(cli.cmd_status(argparse.Namespace(part=None, json=False, check=None, profile=None)), 0)
         printed = "".join(call.args[0] for call in out.write.call_args_list)
         self.assertEqual(printed, ">_ …   Grok …\n")  # first collection pending, never 0%
         spawn.assert_called_once_with("refresh")
@@ -145,6 +146,30 @@ dir = "{self.tmp}/bad"
         done = subprocess.run([str(ROOT / "bin/usage-tracker"), "status"], capture_output=True, text=True,
                               env=env, timeout=10)
         self.assertEqual((done.returncode, done.stdout), (0, "Usage: config error (see Usage diagnostics)\n"))
+
+    def test_status_json_and_check_for_scripts(self):
+        now = time.time()
+        live = dict(GOOD, windows=[model.window_for(300, 85, now + 3600)], updated_at=now, next_at=now + 3600, state="ok")
+        cache.save(self.state, {"good": live, "bad": {"state": "auth", "next_at": now + 3600}})
+        env = dict(os.environ, HERDR_PLUGIN_STATE_DIR=str(self.state), HERDR_PLUGIN_CONFIG_DIR=str(self.conf))
+
+        def run(*args):
+            done = subprocess.run([str(ROOT / "bin/usage-tracker"), "status", *args], capture_output=True,
+                                  text=True, env=env, timeout=10)
+            return done.returncode, done.stdout
+
+        code, out = run("--json")
+        accounts = json.loads(out)["accounts"]
+        self.assertEqual(code, 0)
+        self.assertEqual([(a["id"], a["state"], a["stale"]) for a in accounts],
+                         [("good", "ok", False), ("bad", "auth", True)])
+        self.assertEqual([(w["id"], w["used"]) for w in accounts[0]["windows"]], [("session", 85)])
+        self.assertEqual(run("--check")[0], 10)  # 85% passes the default 80
+        self.assertEqual(run("--check", "90")[0], 0)
+        self.assertEqual(run("--check", "90", "--profile", "bad")[0], 20)  # no fresh data for it
+        cache.save(self.state, {"good": dict(live, windows=[model.window_for(300, 100, now + 3600)])})
+        self.assertEqual(run("--check", "--profile", "good")[0], 11)
+        self.assertEqual(run("--check", "0")[0], 2)  # argparse rejects it
 
 
 if __name__ == "__main__":

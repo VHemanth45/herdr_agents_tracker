@@ -29,11 +29,24 @@ max_width = 120
 # A Herdr notification when a limit passes one of these (% used), once per threshold and window.
 # [] turns alerts off. They show as Herdr's [ui.toast] delivery setting says (off by default there).
 thresholds = [80, 95]
+# A second notification when a limit you were alerted about resets ("Claude 5h limit has reset").
+on_reset = true
 
 [context]
 # Symbol before each agent's context meter in Herdr's Agents panel (e.g. "⛁ 57% 565k"): the
 # one Claude Code's /context uses. With a Nerd Font, "\uEACE" is its database icon.
 icon = "⛁"
+# After each turn, the meter also names the agent's part of its account's shortest limit, e.g.
+# "⛁ 28% 72k · ~12% of 5h": its share of the account's tokens in that window (cache reads left
+# out) times the window's % used. An estimate from this machine's session records.
+share = true
+
+[resume]
+# When an agent stops at a usage limit, the meter shows when it resets, and a minute after the
+# reset one notification names the agents that were waiting. With enabled = true, each agent still
+# idle at its limit error is also sent `prompt` (off by default: it types into your agents).
+enabled = false
+prompt = "continue"
 
 [refresh]
 interval_seconds = 300   # how often live limits are re-read in the background

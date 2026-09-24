@@ -10,8 +10,9 @@ from . import PLUGIN_ID
 DEFAULTS = {
     "status": {"order": [], "format": "compact", "window": "max", "max_width": 120, "bar": "blocks", "bar_width": 10},
     "refresh": {"interval_seconds": 300, "stale_seconds": 1800},
-    "alerts": {"thresholds": [80, 95]},
-    "context": {"icon": "⛁"},
+    "alerts": {"thresholds": [80, 95], "on_reset": True},
+    "context": {"icon": "⛁", "share": True},
+    "resume": {"enabled": False, "prompt": "continue"},
 }
 PROFILE_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 

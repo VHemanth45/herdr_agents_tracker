@@ -7,6 +7,13 @@ statusline bridge, which runs inside the pane (HERDR_PANE_ID) and receives conte
 otherwise from the transcript of the session their claude process records in sessions/<pid>.json.
 Codex panes are updated from the session file their codex process holds open (its main thread;
 subagents have files of their own). Both also when their agent finishes a turn.
+
+After a turn the meter also names the pane's part of its account's shortest limit ("~12% of 5h":
+the session's share of the account's tokens in that window, cache reads left out, times the
+window's % used). When the session's last reply is its provider's usage-limit error, the pane
+is noted in waiting.json and the meter says when the limit resets instead; a minute after the
+reset, one notification names the agents that were waiting, and with [resume] enabled they
+are sent the resume prompt, if they are still idle at that error.
 """
 
 import re
@@ -18,14 +25,16 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import PLUGIN_ID, cache, fmt, integrate
-from .providers import claude
+from . import PLUGIN_ID, alerts, cache, collect, fmt, history, integrate
+from .providers import PROVIDERS, claude
 
 BRIDGE_FRESH = 120  # seconds: a statusline reading this recent belongs to the turn that just ended
 RESEND = 600  # re-send an unchanged meter after this long: Herdr drops pane tokens when it restarts
 CLAUDE_WINDOW = 200_000  # Claude's usual context window; a session past it has the 1M window
 SESSION_ID = re.compile(r"^[0-9a-f-]{36}$")
 TAIL = 256 * 1024  # bytes read from the end of a Codex session file to find its latest token count
+GRACE = 60  # seconds after a reset before waiting agents are released: provider clocks differ a little
+FORGET_WAITING = 86400  # a waiting note this long past its reset is dropped (Herdr was not running)
 
 
 def meter(pct, tokens, icon):
@@ -34,25 +43,44 @@ def meter(pct, tokens, icon):
     return f"{fmt.icon_text(icon) or 'ctx'} " + (f"{pct:.0f}% " if pct is not None else "") + size
 
 
-def show(pane_id, pct, tokens, state_dir, icon, now=None, window=None):
+def show(pane_id, pct, tokens, state_dir, icon, now=None, window=None, extra=None):
     """Put the meter on the pane when it changed, or was last sent long ago; returns the text sent.
-    `window` (a context size seen by the statusline bridge) is remembered for the pane."""
-    now, text = now or time.time(), meter(pct, tokens, icon)
+    `window` (a context size seen by the statusline bridge) is remembered for the pane, and so is
+    `extra`, [note, until]: a note after the meter ("~12% of 5h") shown until that time."""
+    now = now or time.time()
     path = Path(state_dir) / "context.json"
     shown = {pane: v for pane, v in cache.read_json(path, {}).items() if now - v[1] < 86400}  # forget closed panes
     last = shown.get(pane_id) or ["", 0, None]
     window = window or (last[2] if len(last) > 2 else None)
+    extra = extra if extra is not None else (last[3] if len(last) > 3 else None)
+    level = fmt.level(pct) if pct is not None else 0
+    return send(pane_id, meter(pct, tokens, icon), level, window, extra, shown, path, now)
+
+
+def send(pane_id, base, level, window, extra, shown, path, now):
+    extra = extra if extra and extra[1] > now else None
+    text = base + (f" · {extra[0]}" if extra else "")
+    last = shown.get(pane_id) or ["", 0]
     if last[0] == text and now - last[1] < RESEND:
         return None
-    shown[pane_id] = [text, now, window]
+    shown[pane_id] = [text, now, window, extra, level, base]
     cache.write_json(path, shown)
-    level = fmt.level(pct) if pct is not None else 0
     args = [a for i, token in enumerate(integrate.CONTEXT_TOKENS)
             for a in (("--token", f"{token}={text}") if i == level else ("--clear-token", token))]
     subprocess.Popen([integrate.herdr_bin(), "pane", "report-metadata", pane_id, "--source", PLUGIN_ID, *args],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      start_new_session=True)  # never keep Claude's statusline waiting
     return text
+
+
+def clear_expired(state_dir, now):
+    """Take notes past their time off the meters (e.g. a pane idle since its limit reset)."""
+    path = Path(state_dir) / "context.json"
+    shown = cache.read_json(path, {})
+    cleared = [pane for pane, v in shown.items() if len(v) > 5 and v[3] and v[3][1] <= now and now - v[1] < 86400]
+    for pane in cleared:
+        send(pane, shown[pane][5], shown[pane][4], shown[pane][2], None, shown, path, now)
+    return cleared
 
 
 def from_statusline(payload):
@@ -78,17 +106,202 @@ def pids(pane_id, name):
 def claude_context(pane_id, cfg, state_dir):
     """(% of the context window used, or None while its size is unknown, tokens) of the Claude Code
     session in the pane, from the transcript of the session its claude process records."""
-    for pid in pids(pane_id, "claude"):
-        for profile in (p for p in cfg["profiles"] if p["provider"] == "claude" and p["enabled"]):
-            session = cache.read_json(Path(profile["dir"]) / "sessions" / f"{pid}.json", {}).get("sessionId")
-            transcripts = sorted((Path(profile["dir"]) / "projects").glob(f"*/{session}.jsonl")) \
-                if SESSION_ID.match(str(session)) else []
-            tokens = claude_tokens(transcripts[0]) if transcripts else None
-            if tokens:
-                seen = cache.read_json(Path(state_dir) / "context.json", {}).get(pane_id) or []
-                window = (seen[2] if len(seen) > 2 else None) or (1_000_000 if tokens > CLAUDE_WINDOW else None)
-                return (100 * tokens / window if window else None), tokens
+    found = locate(pane_id, "claude", cfg)
+    return measure(found, pane_id, state_dir) if found else None
+
+
+def locate(pane_id, kind, cfg):
+    """The agent session running in the pane: {"kind", "profile" (None when no enabled account
+    holds it), "sessions" (ids, subagents included), "files" (its session files), "main" (the
+    file of its main thread)}, or None."""
+    if kind == "claude":
+        for pid in pids(pane_id, "claude"):
+            for profile in (p for p in cfg["profiles"] if p["provider"] == "claude" and p["enabled"]):
+                session = cache.read_json(Path(profile["dir"]) / "sessions" / f"{pid}.json", {}).get("sessionId")
+                transcripts = sorted((Path(profile["dir"]) / "projects").glob(f"*/{session}.jsonl")) \
+                    if SESSION_ID.match(str(session)) else []
+                if transcripts:
+                    subagents = sorted(transcripts[0].parent.glob(f"{session}/**/*.jsonl"))
+                    return {"kind": kind, "profile": profile, "sessions": [session],
+                            "files": [transcripts[0], *subagents], "main": transcripts[0]}
+    elif kind == "codex":
+        files = {f for pid in pids(pane_id, "codex") for f in open_files(pid)
+                 if "/sessions/" in f and os.path.basename(f).startswith("rollout-") and f.endswith(".jsonl")}
+        mains = sorted((f for f in files if not subagent(f)), key=os.path.getmtime, reverse=True)
+        main = next((f for f in mains if last_context(f)), mains[0] if mains else None)
+        if main:
+            real = os.path.realpath(main)
+            profile = next((p for p in cfg["profiles"] if p["provider"] == "codex" and p["enabled"]
+                            and real.startswith(os.path.realpath(p["dir"]) + os.sep)), None)
+            return {"kind": kind, "profile": profile, "files": sorted(files), "main": main,
+                    "sessions": [s for s in map(codex_session, sorted(files)) if s]}
     return None
+
+
+def measure(found, pane_id, state_dir):
+    """(% of the context window used or None, tokens) of a located session, or None."""
+    if found["kind"] == "codex":
+        return last_context(found["main"])
+    tokens = claude_tokens(found["main"])
+    if not tokens:
+        return None
+    seen = cache.read_json(Path(state_dir) / "context.json", {}).get(pane_id) or []
+    window = (seen[2] if len(seen) > 2 else None) or (1_000_000 if tokens > CLAUDE_WINDOW else None)
+    return (100 * tokens / window if window else None), tokens
+
+
+def codex_session(path):
+    try:
+        with open(path) as f:
+            first = json.loads(f.readline())
+    except (OSError, ValueError):
+        return None
+    payload = first.get("payload") or {}
+    return (payload.get("id") or payload.get("session_id")) if first.get("type") == "session_meta" else None
+
+
+def shortest(entry, now):
+    """The account's shortest limit window shared by all models (the 5-hour one, where there is one)."""
+    live = [w for w in fmt.current(entry.get("windows") or [], now)
+            if w.get("minutes") and w.get("resets_at") and " " not in w["label"]]
+    return min(live, key=lambda w: w["minutes"], default=None)
+
+
+def share(found, cfg, state_dir, now):
+    """[note, until] naming the pane's part of its account's shortest limit window, e.g.
+    ["~12% of 5h", reset time]: its sessions' share of the account's tokens since the window
+    opened (cache reads left out: they weigh little against the limits), times the window's %."""
+    profile = found.get("profile")
+    if not profile or cfg["context"].get("share", True) is False:
+        return None
+    w = shortest(collect.entries(cfg, state_dir, now).get(profile["id"]) or {}, now)
+    if not w:
+        return None
+    with history.Store(history.db_path(state_dir, profile["id"])) as store:
+        for path in found["files"]:  # this session's latest replies; the collector brings in the rest
+            store.scan(path, PROVIDERS[profile["provider"]].parse_line)
+    mine, total = history.session_share(state_dir, profile["id"], found["sessions"], w["resets_at"] - w["minutes"] * 60)
+    if not total:
+        return None
+    part = w["used"] * mine / total
+    return [f"{'~' + fmt.pct(part) if part >= 1 else '<1%'} of {w['label']}", w["resets_at"]]
+
+
+def stopped_at_limit(found):
+    """Whether the session's latest reply is its provider's usage-limit error: Claude Code's
+    "You've hit your session limit · resets 10:20pm" (a synthetic reply with error "rate_limit"),
+    or a Codex token count naming the limit it reached."""
+    for line in reversed(tail(found["main"])):
+        if found["kind"] == "claude" and (b'"user"' in line or b'"assistant"' in line):
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if record.get("type") in ("user", "assistant") and not record.get("isSidechain"):
+                return record["type"] == "assistant" and record.get("error") == "rate_limit"
+        elif found["kind"] == "codex" and b'"token_count"' in line:
+            try:
+                payload = json.loads(line).get("payload") or {}
+            except ValueError:
+                continue
+            if payload.get("type") == "token_count":
+                return bool((payload.get("rate_limits") or {}).get("rate_limit_reached_type"))
+    return False
+
+
+def note_waiting(found, pane_id, cfg, state_dir, now):
+    """When the session stopped at its usage limit: note the pane as waiting for the limit it is at
+    (the fullest; the later reset of a tie) and return the meter's [note, until]; else None."""
+    if not found.get("profile") or not stopped_at_limit(found):
+        return None
+    entry = collect.entries(cfg, state_dir, now).get(found["profile"]["id"]) or {}
+    w = max((w for w in fmt.current(entry.get("windows") or [], now) if w.get("resets_at")),
+            key=lambda w: (w["used"], w["resets_at"]), default=None)
+    if not w:
+        return None
+    agent = agent_info(pane_id) or {}
+    with cache.lock(Path(state_dir) / "waiting.lock"):
+        path = Path(state_dir) / "waiting.json"
+        waiting = cache.read_json(path, {})
+        waiting[pane_id] = {"profile": found["profile"]["id"], "window": w["id"], "label": w["label"],
+                            "resets_at": w["resets_at"], "agent": found["kind"], "since": now,
+                            "name": agent.get("terminal_title_stripped") or pane_id}
+        cache.write_json(path, waiting)
+    return [f"limit · resets {fmt.clock(w['resets_at'], now)}", w["resets_at"] + GRACE]
+
+
+def agent_info(pane_id):
+    try:
+        code, out, _ = integrate.herdr("agent", "get", pane_id, timeout=3)
+        return json.loads(out or "{}").get("result", {}).get("agent") if code == 0 else None
+    except (ValueError, integrate.SetupError):
+        return None
+
+
+def release_waiting(cfg, state_dir, now, send=None):
+    """At each status refresh: for agents waiting on a limit that reset over a minute ago, one
+    notification per limit, and with [resume] enabled the resume prompt to each agent still idle at
+    its limit error. Also clears meter notes past their time. Returns the (profile, window) pairs
+    announced, so alerts leave out their plain reset notice."""
+    path, announced = Path(state_dir) / "waiting.json", set()
+    if any(w.get("resets_at", 0) + GRACE <= now for w in cache.read_json(path, {}).values()):
+        with cache.lock(Path(state_dir) / "waiting.lock") as held:
+            if held:
+                announced = release(cfg, path, now, send)
+    clear_expired(state_dir, now)
+    return announced
+
+
+def release(cfg, path, now, send):
+    waiting, announced = cache.read_json(path, {}), set()
+    profiles = {p["id"]: p for p in cfg["profiles"] if p["enabled"]}
+    groups = {}
+    for pane, w in waiting.items():
+        if w.get("resets_at", 0) + GRACE <= now:
+            groups.setdefault((w["profile"], w["window"]), []).append(pane)
+    for (pid, wid), panes in groups.items():
+        if pid not in profiles or now - waiting[panes[0]]["resets_at"] > FORGET_WAITING:
+            for pane in panes:
+                del waiting[pane]
+            continue
+        for pane in panes:
+            if cfg["resume"].get("enabled") is True and not waiting[pane].get("resumed"):
+                waiting[pane]["resumed"] = resume(pane, waiting[pane], cfg)
+        note = waiting_message(profiles[pid], [waiting[pane] for pane in panes])
+        if cfg["alerts"].get("on_reset", True) is False or (send or alerts.notify)(*note):
+            for pane in panes:
+                del waiting[pane]
+            announced.add((pid, wid))
+    cache.write_json(path, waiting)
+    return announced
+
+
+def resume(pane_id, wait, cfg):
+    """Send the resume prompt when the agent is still idle at its limit error (nobody went on by hand)."""
+    agent = agent_info(pane_id) or {}
+    if agent.get("agent") != wait["agent"] or agent.get("agent_status") not in ("idle", "done"):
+        return False
+    found = locate(pane_id, wait["agent"], cfg)
+    if not found or not stopped_at_limit(found):
+        return False
+    try:
+        subprocess.Popen([integrate.herdr_bin(), "agent", "prompt", pane_id, str(cfg["resume"].get("prompt") or "continue")],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    except (OSError, integrate.SetupError):
+        return False
+    return True
+
+
+def waiting_message(profile, waits):
+    """("Claude 5h limit has reset", "Waiting on it: api, web. Resumed both.")"""
+    base, _, scope = waits[0]["label"].partition(" ")
+    title = f"{profile['label']} {base} limit{f' ({scope})' if scope else ''} has reset"
+    names = ", ".join(str(w["name"])[:30] for w in waits)
+    resumed = sum(1 for w in waits if w.get("resumed"))
+    tail_text = (" Resumed." if resumed == len(waits) == 1 else f" Resumed {resumed} of {len(waits)}." if resumed
+                 else " It can go on." if len(waits) == 1 else " They can go on.")
+    return title, f"Waiting on it: {names}.{tail_text}"
 
 
 def claude_tokens(path):
@@ -151,13 +364,8 @@ def tail(path):
 
 def codex_context(pane_id):
     """(% of the context window used, tokens) of the Codex session running in the pane, or None."""
-    files = {f for pid in pids(pane_id, "codex") for f in open_files(pid)
-             if "/sessions/" in f and os.path.basename(f).startswith("rollout-") and f.endswith(".jsonl")}
-    for path in sorted((f for f in files if not subagent(f)), key=os.path.getmtime, reverse=True):
-        found = last_context(path)
-        if found:
-            return found
-    return None
+    found = locate(pane_id, "codex", {"profiles": []})
+    return last_context(found["main"]) if found else None
 
 
 def open_files(pid):
@@ -213,10 +421,9 @@ def last_context(path):
     return None
 
 
-def context(pane_id, kind, cfg, state_dir):
-    if kind == "claude":
-        return claude_context(pane_id, cfg, state_dir)
-    return codex_context(pane_id) if kind == "codex" else None
+def context(pane_id, kind, cfg, state_dir, found=None):
+    found = found or (locate(pane_id, kind, cfg) if kind in ("claude", "codex") else None)
+    return measure(found, pane_id, state_dir) if found else None
 
 
 def show_all(cfg, state_dir, now):
@@ -226,9 +433,10 @@ def show_all(cfg, state_dir, now):
     listed = json.loads(out or "{}").get("result", {}).get("agents", []) if code == 0 else []
     shown = 0
     for agent in listed:
-        found = context(agent["pane_id"], agent.get("agent"), cfg, state_dir)
-        if found:
-            show(agent["pane_id"], *found, state_dir, cfg["context"]["icon"], now)
+        found = locate(agent["pane_id"], agent.get("agent"), cfg) if agent.get("agent") in ("claude", "codex") else None
+        measured = context(agent["pane_id"], agent.get("agent"), cfg, state_dir, found)
+        if measured:
+            show(agent["pane_id"], *measured, state_dir, cfg["context"]["icon"], now, extra=usage_note(found, agent["pane_id"], cfg, state_dir, now))
             shown += 1
     return shown
 
@@ -248,6 +456,16 @@ def bridged(kind, cfg, state_dir, now):
         for p in profiles)
 
 
+def usage_note(found, pane_id, cfg, state_dir, now):
+    """The meter's note after a turn: when the limit resets if the agent stopped at it, else its share."""
+    if not found:
+        return None
+    try:
+        return note_waiting(found, pane_id, cfg, state_dir, now) or share(found, cfg, state_dir, now)
+    except Exception:  # the meter itself matters more than its note
+        return None
+
+
 def on_event(event, cfg, state_dir, now):
     """Herdr's pane.agent_status_changed: when an agent finishes a turn, re-read its provider's
     limits (at most once a minute, and not when the statusline bridge already has them) and the
@@ -258,9 +476,11 @@ def on_event(event, cfg, state_dir, now):
         return f"{kind} {pane} {status}: nothing to do"
     notes = []
     if kind in ("claude", "codex"):
-        found = context(pane, kind, cfg, state_dir)
-        notes.append(f"context {show(pane, *found, state_dir, cfg['context']['icon'], now) or 'unchanged'}"
-                     if found else "no context found")
+        found = locate(pane, kind, cfg)
+        measured = context(pane, kind, cfg, state_dir, found)
+        extra = usage_note(found, pane, cfg, state_dir, now) if measured else None
+        notes.append(f"context {show(pane, *measured, state_dir, cfg['context']['icon'], now, extra=extra) or 'unchanged'}"
+                     if measured else "no context found")
     if any(p["enabled"] and p["provider"] == kind for p in cfg["profiles"]):
         if bridged(kind, cfg, state_dir, now):
             notes.append("limits current from the statusline")

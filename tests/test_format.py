@@ -87,6 +87,21 @@ class StatusLine(unittest.TestCase):
         self.assertEqual(self.line(codex, {"codex": entry(fast, updated=NOW - 3 * 3600)}), "Codex 88% 5d18h (3h00m old)")
         self.assertEqual(self.line(codex, {"codex": entry(fast)}, max_width=20), "Codex 88%")
 
+    def test_pace_uses_the_recent_rate_when_a_reading_is_saved(self):
+        # 60% after 4 of the 5 hours, but 50% of it in the last hour: at that rate 100% comes in 48 minutes.
+        busy = model.window_for(300, 60, NOW + 3600) | {"base": [NOW - 3600, 10]}
+        self.assertEqual([round(x) for x in fmt.forecast(busy, NOW)], [110, 2880])
+        # Nothing used lately: the window ends where it is, although the average says 75%.
+        quiet = model.window_for(300, 60, NOW + 3600)
+        self.assertEqual(round(fmt.forecast(quiet, NOW)[0]), 75)
+        self.assertEqual(fmt.forecast(quiet | {"base": [NOW - 3600, 60]}, NOW), (60, None))
+
+    def test_trend_line(self):
+        readings = [(NOW, NOW + 60, 0), (NOW + 3600, NOW + 3600, 30), (NOW + 7200, NOW + 9000, 100)]
+        # Ten slices of 30 minutes; the first reading is at the start, the window runs 5 hours.
+        self.assertEqual(fmt.trend(readings, NOW, NOW + 18000, NOW + 9000, 10), "▁▁▃▃██    ")
+        self.assertEqual(fmt.trend(readings[1:], NOW, NOW + 18000, NOW + 9000, 5), " ▃█  ")
+
     def test_states_are_explicit(self):
         profiles = [profile(p) for p in ("a", "b", "c", "d")]
         entries = {"a": {"state": "auth", "error": "expired"}, "b": {"state": "unavailable"},

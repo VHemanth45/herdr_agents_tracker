@@ -56,6 +56,8 @@ class Dashboard:
         self.entries = collect.entries(self.cfg, self.state_dir, self.now)
         self.history = history.rows(self.state_dir, self.cfg["profiles"])
         self.coverage = history.coverage(self.state_dir, self.cfg["profiles"])
+        self.readings = {(pid, w["id"]): history.limit_readings(self.state_dir, pid, w)
+                         for pid, entry in self.entries.items() for w in fmt.current(entry.get("windows") or [], self.now)}
         self.loaded_at = time.time()
 
     def profiles(self):
@@ -159,7 +161,7 @@ class Dashboard:
                 (" (estimate)" if entry.get("estimated") else "")
             lines += ["", [(f"{title}", "bold"), (f"   {self.freshness(entry)}", "dim")]]
             for w in entry.get("windows") or []:
-                lines += self.window_lines(w, entry, bar, width)
+                lines += self.window_lines(w, entry, bar, width, self.readings.get((p["id"], w["id"])))
             if entry.get("state") in ("auth", "unavailable", "error") and entry.get("error"):
                 style = "bad" if entry["state"] == "auth" else "warn"
                 label = {"auth": "SIGN-IN NEEDED", "unavailable": "UNAVAILABLE", "error": "LAST REFRESH FAILED"}
@@ -177,8 +179,9 @@ class Dashboard:
         stale = "STALE · " if age > self.cfg["refresh"]["stale_seconds"] else ""
         return f"{stale}updated {fmt.duration(age)} ago ({fmt.clock(entry['updated_at'], self.now)}) · {entry.get('source', '')}"
 
-    def window_lines(self, w, entry, bar, width):
-        """As in Claude Code's usage view: the limit's name and reset, then its bar and numbers."""
+    def window_lines(self, w, entry, bar, width, readings=None):
+        """As in Claude Code's usage view: the limit's name and reset, then its bar and numbers, and
+        a trend line across the whole window once two readings of it are saved."""
         used, name = w["used"], f"  {window_name(w)}"
         if used is None:
             return [[(name, "bold"), (" · no percentage reported", "dim")]]
@@ -198,9 +201,13 @@ class Dashboard:
             meter.append((f" · on pace for {fmt.pct(min(ahead[0], 100))} at the reset", "dim"))
         reset = (f"resets in {fmt.duration(w['resets_at'] - self.now)} ({fmt.clock(w['resets_at'], self.now)})"
                  if w.get("resets_at") else "no fixed reset")
-        if len(name) + 3 + len(reset) < width:
-            return [[(name, "bold"), (f" · {reset}", "dim")], meter]
-        return [[(name, "bold")], meter, [(f"  {reset}", "dim")]]
+        lines = [[(name, "bold"), (f" · {reset}", "dim")], meter] if len(name) + 3 + len(reset) < width else \
+            [[(name, "bold")], meter, [(f"  {reset}", "dim")]]
+        if len(readings or []) > 1 and w.get("minutes") and w.get("resets_at"):
+            start = w["resets_at"] - w["minutes"] * 60
+            lines.append([("  ", ""), (fmt.trend(readings, start, w["resets_at"], self.now, bar), style),
+                          (f"  trend since {fmt.clock(start, self.now)}", "dim")])
+        return lines
 
     def activity(self, width):
         since, name = self.since(), RANGES[self.range][0]

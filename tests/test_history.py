@@ -2,8 +2,8 @@ import os
 import shutil
 import unittest
 
-from helpers import IsolatedTest
-from usage_tracker import config, history
+from helpers import NOW, IsolatedTest
+from usage_tracker import config, history, model
 from usage_tracker.providers import claude, codex
 
 
@@ -80,6 +80,24 @@ class History(IsolatedTest):
         self.assertTrue(history.db_path(self.state, "work").exists())
         per_account = {p: sum(r["requests"] for r in rows if r["profile"] == p) for p in ("claude", "work")}
         self.assertEqual(per_account, {"claude": 3, "work": 3})
+
+    def test_limit_readings_feed_the_forecast(self):
+        week = lambda used, reset=NOW + 86400: model.window_for(10080, used, reset)
+        with history.Store(history.db_path(self.state, "claude")) as store:
+            store.record_limits([week(20)], NOW - 3 * 86400)
+            store.record_limits([week(20)], NOW - 2 * 86400)  # unchanged: extends the same row
+            store.record_limits([week(50)], NOW - 3600)
+            store.record_limits([week(40)], NOW - 7200)  # older than the saved one: ignored
+            store.record_limits([week(5, NOW + 8 * 86400)], NOW - 60)  # a later window has its own rows
+        rows = history.limit_readings(self.state, "claude", week(50))
+        self.assertEqual(rows, [(NOW - 3 * 86400, NOW - 2 * 86400, 20), (NOW - 3600, NOW - 3600, 50)])
+        # A fifth of the week (33.6 h) ago the limit stood at 20%, last seen 2 days ago.
+        [w] = history.with_baselines(self.state, "claude", [week(50)], NOW)
+        self.assertEqual(w["base"], [NOW - 2 * 86400, 20])
+        # No saved reading that far back in this window: the average since the start is used.
+        [w] = history.with_baselines(self.state, "claude", [week(5, NOW + 8 * 86400)], NOW)
+        self.assertNotIn("base", w)
+        self.assertEqual(history.with_baselines(self.state, "none", [week(1)], NOW), [week(1)])
 
     def test_same_directory_twice_is_not_counted_twice(self):
         profiles, warnings = config.resolve_profiles([

@@ -2,6 +2,8 @@
 
 The status command checks after each tab-bar refresh. alerts.json keeps the highest threshold
 announced for each limit until that limit resets, so each threshold is announced once per window.
+When an announced limit reaches its reset time, a second notification says it has reset
+(alerts.on_reset).
 """
 
 import json
@@ -11,9 +13,10 @@ from pathlib import Path
 from . import cache, fmt, integrate
 
 
-def check(profiles, entries, cfg, now, state_dir, send=None):
+def check(profiles, entries, cfg, now, state_dir, send=None, covered=()):
     """Announce limits that passed a threshold not yet announced this window; returns the
-    (title, body) pairs sent. `send` returns False when the alert should be tried again later."""
+    (title, body) pairs sent. `send` returns False when the alert should be tried again later.
+    `covered` (profile, window) resets were already announced with the agents waiting on them."""
     raw = cfg["alerts"]["thresholds"]
     thresholds = sorted(t for t in (raw if isinstance(raw, list) else []) if isinstance(t, (int, float)) and 0 < t <= 100)
     if not thresholds:
@@ -25,12 +28,25 @@ def check(profiles, entries, cfg, now, state_dir, send=None):
         path = state_dir / "alerts.json"
         seen = cache.read_json(path, {})
         before = dict(seen)
+        enabled = {p["id"]: p for p in profiles if p["enabled"]}
+        for key, last in list(seen.items()):
+            pid, _, wid = key.partition("/")
+            if not last.get("resets_at") or last["resets_at"] > now:
+                continue
+            if pid in enabled and (pid, wid) not in covered and cfg["alerts"].get("on_reset", True) is not False:
+                note = reset_message(enabled[pid], wid, last, entries.get(pid) or {}, now)
+                if not (send or notify)(*note):
+                    continue  # tried again at the next check
+                sent.append(note)
+            del seen[key]
         for p in profiles:
             entry = entries.get(p["id"]) or {}
             if not p["enabled"] or now - (entry.get("updated_at") or 0) > cfg["refresh"]["stale_seconds"]:
                 continue
             for w in fmt.current(entry.get("windows") or [], now):
                 key, last = f"{p['id']}/{w['id']}", seen.get(f"{p['id']}/{w['id']}")
+                if last and last.get("resets_at") and last["resets_at"] <= now:
+                    continue  # its reset notification is still to be delivered
                 if last and (w["used"] < last["level"] or abs((w.get("resets_at") or 0) - (last.get("resets_at") or 0)) > 3600):
                     last = None  # the limit has reset since
                 level = max((t for t in thresholds if w["used"] >= t), default=None)
@@ -38,7 +54,7 @@ def check(profiles, entries, cfg, now, state_dir, send=None):
                     note = message(p, w, now)
                     if (send or notify)(*note):
                         sent.append(note)
-                        seen[key] = {"level": level, "resets_at": w.get("resets_at")}
+                        seen[key] = {"level": level, "resets_at": w.get("resets_at"), "label": w["label"]}
                 elif not last:
                     seen.pop(key, None)
         if seen != before:
@@ -55,6 +71,15 @@ def message(profile, w, now):
     if ahead and ahead[1] is not None:
         body += f" At this rate 100% in {fmt.duration(ahead[1])}."
     return title, body.strip()
+
+
+def reset_message(profile, wid, last, entry, now):
+    """("Claude 5h limit has reset", "7d 41% used · Fable 3% used.")"""
+    base, _, scope = str(last.get("label") or wid).partition(" ")
+    title = f"{profile['label']} {base} limit{f' ({scope})' if scope else ''} has reset"
+    others = [f"{w['label']} {fmt.pct(w['used'])} used" for w in fmt.current(entry.get("windows") or [], now)
+              if w["id"] != wid]
+    return title, (" · ".join(others) + ".") if others else ""
 
 
 def notify(title, body):

@@ -1,50 +1,187 @@
-# Usage Tracker for Herdr
+<div align="center">
 
-**Every account, every limit window, every agent — and not one credential read.**
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:3b2a5c,100:8a6fbf&height=190&section=header&text=Usage%20Tracker&fontSize=56&fontColor=ffffff&fontAlignY=36&desc=AI%20limits%20and%20context%20meters%20for%20Herdr&descSize=18&descAlignY=58" alt="Usage Tracker for Herdr" width="100%">
 
-[![tests](https://github.com/VHemanth45/herdr_agents_tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/VHemanth45/herdr_agents_tracker/actions/workflows/tests.yml)
-[![Herdr 0.8.2+](https://img.shields.io/badge/Herdr-0.8.2%2B-8a6fbf)](https://herdr.dev)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-2f8f4e)](LICENSE)
+<a href="#why-this-one"><img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=20&duration=2800&pause=900&color=8A6FBF&center=true&vCenter=true&width=640&lines=Know+when+you%27ll+hit+100%25+of+a+limit;See+which+agent+is+using+it+up;Every+account%2C+every+window%2C+every+agent;No+credentials+read.+No+telemetry." alt="Know when you'll hit 100% of a limit. See which agent is using it up."></a>
 
-See how much of your AI subscriptions you have used, without leaving Herdr: in the tab bar, under
-each agent, and in a dashboard. Supports Claude Code, Codex, OpenCode Go and Grok.
+[![tests](https://img.shields.io/github/actions/workflow/status/VHemanth45/herdr_agents_tracker/tests.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=tests)](https://github.com/VHemanth45/herdr_agents_tracker/actions/workflows/tests.yml)
+[![Herdr 0.8.2+](https://img.shields.io/badge/Herdr-0.8.2%2B-8a6fbf?style=for-the-badge)](https://herdr.dev)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2f8f4e?style=for-the-badge)](LICENSE)
+
+[![Claude Code](https://img.shields.io/badge/Claude_Code-live-d97757?style=flat-square&logo=claude&logoColor=white)](#providers)
+[![Codex](https://img.shields.io/badge/Codex-live-10a37f?style=flat-square)](#providers)
+[![OpenCode Go](https://img.shields.io/badge/OpenCode_Go-estimated-555?style=flat-square)](#providers)
+[![Grok](https://img.shields.io/badge/Grok-opt--in-555?style=flat-square)](#providers)
+[![dependencies](https://img.shields.io/badge/dependencies-none-2f8f4e?style=flat-square)](#install)
+[![telemetry](https://img.shields.io/badge/telemetry-none-2f8f4e?style=flat-square)](#privacy-what-it-reads)
+
+<b><a href="#why-this-one">Why</a> · <a href="#everything-it-answers">Features</a> · <a href="#install">Install</a> · <a href="#use">Use</a> · <a href="#configure">Configure</a> · <a href="#providers">Providers</a> · <a href="#privacy-what-it-reads">Privacy</a> · <a href="#faq">FAQ</a></b>
+
+<br>
 
 ![Herdr with the usage summary in the tab bar, context meters in the Agents panel and the dashboard open](docs/herdr-window.png)
 
-*Screenshots use demo accounts and made-up numbers.*
+<sub>Screenshots use demo accounts and made-up numbers.</sub>
 
-## What it shows
+</div>
 
-- **Tab bar** — one entry per account: logo, bar, % used and time until reset, one group per limit
-  window. A model's own limit shows its name instead of a time (`0% Fable`).
+## Why this one
 
-  ![The tab-bar summary: two Claude accounts and Codex](docs/tab-bar.png)
+<table>
+<tr>
+<td width="50%" valign="top">
 
-- **A context meter per agent** — how full each Claude Code and Codex pane's context window is,
-  in Herdr's Agents panel: grey, yellow from 70%, red from 90%.
+#### A time, not just a percentage
+Other trackers tell you **52% used**. This one also tells you **when you'll hit 100%** at your
+current pace:
 
-  <img src="docs/agents.png" alt="Agents panel with a context meter under each agent" width="360">
+```
+Claude ████░░░░░░ 52% 2h12m (100% in 1h40m)
+```
 
-- **Pace** — `(100% in 4h05m)` when a limit is on course to run out before it resets.
-- **Alerts** — a Herdr notification when a limit passes 80% and 95%, once per window.
-- **Dashboard** — every window, token history, a heatmap, and totals by account, model and project.
-- **Several accounts per provider** — never merged; each keeps its own cache and history.
-- **Honest states**, never a misleading 0%: `…` first refresh · `n/a` no data source ·
-  `sign-in needed` · `error` · `(3h00m old)` stale · `~21%` estimate · `-- (reset)`.
+It goes by the last hour of work, not the average since the window opened, so a sudden burst
+shows up straight away.
 
-Token counts only: no prices and no spend estimates. Limits come from each tool itself, so no
-credentials are read — see [What it reads](#what-it-reads).
+</td>
+<td width="50%" valign="top">
 
-## Requirements
+#### Usage per agent
+Running five agents at once? Each one's context meter shows **its own part of the limit**:
 
-- Herdr 0.8.2 or newer.
-- Python 3.11+, standard library only. macOS still ships 3.9, so install a newer one
-  (`brew install python`); the install stops with a message if none is found.
-- macOS or Linux.
-- Herdr itself is not modified: this is a plugin.
+```
+⛁ 28% 72k · ~12% of 5h
+⛁ 15% 148k · ~2% of 5h
+```
+
+No more guessing which pane used up your 5-hour window.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### Warned before, told after
+A notification at **80%** and **95%**, and another when the limit **resets**. Agents that stopped
+at the limit show when it resets and are named when it does. They can also be resumed for you
+(opt-in).
+
+```
+Claude 5h limit has reset
+Waiting on it: api server, web. They can go on.
+```
+
+</td>
+<td width="50%" valign="top">
+
+#### Nothing to leak
+**It reads no credentials** for Claude or Codex: it asks those tools themselves. It never reads
+prompts or replies, sends no telemetry, and has no dependencies beyond Python's standard library.
+It's a plugin: Herdr's own code is never modified.
+
+</td>
+</tr>
+</table>
+
+## Everything it answers
+
+| You want to know… | Where to look | What you see |
+|---|---|---|
+| How much of each account have I used? | **Tab bar**, always visible | `Claude ██░░ 13% 35m \| 2% 6d11h \| 0% Fable` |
+| Will I run out before it resets? | Tab bar and dashboard | `(100% in 1h40m)` · `on pace for 64% at the reset` |
+| Which agent is using the limit? | **Agents panel**, per pane | `⛁ 28% 72k · ~12% of 5h` |
+| How full is this agent's context? | Agents panel (grey, then yellow from 70%, red from 90%) | `⛁ 84% 216k` |
+| When can a stopped agent go on? | Agents panel, then a notification | `limit · resets 22:20` |
+| How has usage grown this window? | **Dashboard** trend line | `▁▁▂▃▃▅▆▇` |
+| Where did my tokens go? | Dashboard | by day · account · model · project · session, plus a heatmap |
+| Can my scripts check it? | CLI | `status --json` · `status --check 90` → exit `10` |
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Sources["Read locally, no credentials"]
+        C["Claude Code<br/>get_usage + statusLine"]
+        X["Codex<br/>app-server"]
+        O["OpenCode Go<br/>opencode.db"]
+        S["Session files<br/>token counts only"]
+    end
+    R(["Collector<br/>every 5 min and<br/>after each turn"])
+    D[("Cache and<br/>history")]
+    subgraph Herdr
+        T["Tab bar<br/>every 30 s"]
+        A["Agents panel<br/>meters"]
+        P["Dashboard<br/>prefix+u"]
+        N["Notifications"]
+    end
+    J["CLI<br/>--json / --check"]
+    C --> R
+    X --> R
+    O --> R
+    S --> R
+    R --> D
+    D --> T
+    D --> A
+    D --> P
+    D --> N
+    D --> J
+```
+
+## A closer look
+
+### Tab bar: all accounts at a glance
+
+One entry per account: logo, bar, % used and time until reset, for every limit window. A model's
+own limit shows its name (`0% Fable`). When the tab bar runs short of room, it drops model limits,
+then reset times, then bars, but every account stays visible.
+
+![The tab-bar summary: two Claude accounts and Codex](docs/tab-bar.png)
+
+### Agents panel: a meter under every agent
+
+<img src="docs/agents.png" alt="Agents panel with a context meter under each agent" width="360" align="right">
+
+Under each Claude Code and Codex agent:
+
+- **Context meter**: how full its context window is, coloured by level.
+- **Its part of the limit**: `~12% of 5h`, updated after every turn.
+- **Stopped at a limit?** The meter shows `limit · resets 22:20` instead. A minute after the
+  reset, one notification names every agent that was waiting.
+
+<br clear="right">
+
+### Dashboard: `prefix+u`
+
+Every limit with its bar, pace and a **trend line across the window**, then your token history:
+today, 7 days, 30 days or all time, with a daily heatmap and totals by account, model, project
+and session.
+
+![Dashboard: account limits with pace, token activity and the daily heatmap](docs/dashboard.png)
+
+![Dashboard, scrolled: totals by account, backend, model and project](docs/dashboard-history.png)
+
+### Numbers you can trust
+
+It never shows a misleading **0%**. Every state has its own label:
+
+| You see | It means |
+|---|---|
+| `…` | First refresh still running |
+| `~21%` | An estimate (e.g. OpenCode Go, from local records) |
+| `(3h00m old)` | Stale data, with its age |
+| `-- (reset)` | The window reset and hasn't been read again yet |
+| `sign-in needed` · `n/a` · `error` | The account needs attention (details in diagnostics) |
+
+> [!TIP]
+> Several accounts per provider are fine (personal and work, say): each keeps its own cache,
+> history and alerts, and they're never merged.
 
 ## Install
+
+> [!IMPORTANT]
+> **Requirements:** Herdr 0.8.2+ · Python 3.11+ · macOS or Linux.
+> macOS ships Python 3.9, so run `brew install python` once; the install stops with a message if
+> no 3.11+ is found.
 
 ```sh
 # 1. Install the plugin (shows a preview; confirm it)
@@ -54,20 +191,21 @@ herdr plugin install VHemanth45/herdr_agents_tracker
 herdr plugin action invoke setup --plugin herdr_agents_tracker
 ```
 
-Setup shows its plan first, then:
+That's it. Setup:
 
-- adds three `tab_bar_right` command entries, a `prefix+u` dashboard shortcut and a
-  `prefix+shift+u` refresh shortcut to Herdr's `config.toml`;
-- adds the context meter to `[ui.sidebar.agents] rows`;
-- writes a starter plugin config listing the accounts it found;
-- wraps your Claude Code `statusLine` command so Claude's own limit numbers are saved (your
-  command still runs, unchanged);
-- reloads Herdr's config — Herdr is not restarted and running agents are untouched.
+- adds the tab-bar summary, a `prefix+u` dashboard key and a `prefix+shift+u` refresh key;
+- adds the context meter to the Agents panel;
+- writes a starter config listing the accounts it found;
+- wraps your Claude Code `statusLine` so Claude's own limit numbers are saved (your command still
+  runs, unchanged);
+- reloads Herdr's config without restarting Herdr or touching running agents.
 
-Every line it writes ends with `# usage-tracker`, each file is backed up first, and running setup
-again changes nothing.
+> [!NOTE]
+> Every line setup writes ends with `# usage-tracker`, every file is backed up first, and running
+> it again changes nothing.
 
-To install from a clone instead:
+<details>
+<summary><b>Install from a clone instead</b></summary>
 
 ```sh
 git clone https://github.com/VHemanth45/herdr_agents_tracker.git
@@ -76,121 +214,168 @@ herdr plugin link "$PWD"
 bin/usage-tracker setup --claude-statusline --apply
 ```
 
+</details>
+
 ## Use
 
-- **Dashboard**: `prefix+u` (`ctrl+b` then `u`) or the **Usage: open dashboard** action. It opens
-  as a popup; `q` closes it and your layout is untouched.
-  Keys: `r` refresh · `↑↓`/`jk` scroll · `t w m a` today / 7 days / 30 days / all · `f` account ·
-  `p` provider · `?` help.
+| Keys | What it does |
+|---|---|
+| `prefix+u` (`ctrl+b` `u`) | Open the dashboard as a popup; `q` closes it and your layout is untouched |
+| `prefix+shift+u` | Re-read every account now (the tab bar shows it within 30 s) |
+| In the dashboard | `r` refresh · `↑↓`/`jk` scroll · `t w m a` today / 7 d / 30 d / all · `f` account · `p` provider · `?` help |
 
-  ![Dashboard: account limits with pace, token activity and the daily heatmap](docs/dashboard.png)
+Herdr's action menu also has **Usage: open dashboard · refresh now · show diagnostics · setup guide**.
 
-  ![Dashboard, scrolled: totals by account, backend, model and project](docs/dashboard-history.png)
+**How fresh is it?** The tab bar reads a local cache every 30 s. Limits are re-read every
+5 minutes and right after an agent finishes a turn. Claude's `statusLine` reports its 5h and 7d
+limits as you work.
 
-- **Refresh now**: `prefix+shift+u` re-reads every account in the background; the tab bar shows
-  the new numbers at its next update (within 30 s). `r` does the same inside the dashboard.
-- **Actions**: open dashboard · refresh now · show diagnostics · setup guide.
-- **CLI**: `bin/usage-tracker status | refresh | dashboard | diagnostics | setup | uninstall`.
-- **Refreshing**: the tab bar reads a local cache every 30 s; limits are re-read every 5 minutes,
-  and right after an agent finishes a turn unless Claude's statusLine just reported them.
+### For scripts
+
+```sh
+usage-tracker status --json                    # every account's limits and forecast, as JSON
+usage-tracker status --check 90 --profile claude || echo "Claude is nearly out"
+```
+
+| `--check [PCT]` exit code | Meaning |
+|---|---|
+| `0` | Every limit below PCT (default 80) |
+| `10` | A limit is at PCT% or more |
+| `11` | A limit is used up |
+| `20` | No account has fresh data |
+
+Plain `status` (what the tab bar runs) always exits `0`, so the tab bar is never hidden by it.
 
 ## Configure
 
-Your config is `~/.config/herdr/plugins/config/herdr_agents_tracker/config.toml`
-(`herdr plugin config-dir herdr_agents_tracker`); [`config.example.toml`](config.example.toml)
-lists every option.
+Your config: `~/.config/herdr/plugins/config/herdr_agents_tracker/config.toml`
+(`herdr plugin config-dir herdr_agents_tracker`). [`config.example.toml`](config.example.toml)
+lists every option with comments.
 
-- `[[profiles]]` — one per account, each with its own `dir` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, …).
-  With none set, `~/.claude`, `~/.codex` and `~/.local/share/opencode` are used. Grok is opt-in.
-- `label`, `icon` — what the tab bar shows for an account. With a Nerd Font,
-  `icon = "\uEC82"` and `"\uEC81"` are the Claude and OpenAI logos; short labels keep the bar
-  compact.
-- `status.format` — `compact` (one window), `detailed` (all windows) or `split` (5-hour and weekly
-  in one bar). Also per profile.
-- `status.bar` — `blocks`, `color` (🟩 🟨 🟥) or `none`; `status.bar_width` in columns.
-- `status.order`, `status.window` — which accounts appear, and which window `compact` shows.
-- `status.max_width` (120) — room for the whole summary. Herdr hides it if it does not fit beside
-  the tabs, so when space runs short the bar drops model limits, then reset times, then bars;
-  every account stays visible.
-- `alerts.thresholds` (`[80, 95]`; `[]` turns alerts off). Alerts need Herdr's `[ui.toast]
-  delivery` set to `"herdr"` or `"system"`.
-- `context.icon` (`⛁`) and `refresh.interval_seconds` (300).
+<details>
+<summary><b>All options</b></summary>
+
+| Option | Default | What it does |
+|---|---|---|
+| `[[profiles]]` | auto-detected | One per account, each with its own `dir` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, …). With none set, `~/.claude`, `~/.codex` and `~/.local/share/opencode` are used. Grok is opt-in. |
+| `label`, `icon` | provider name | What the tab bar shows. With a Nerd Font, `""` / `""` are the Claude / OpenAI logos. |
+| `status.format` | `compact` | `compact` (one window), `detailed` (all windows) or `split` (5h and weekly in one bar). Also per profile. |
+| `status.bar`, `status.bar_width` | `blocks`, 10 | `blocks`, `color` (coloured squares) or `none`; width in columns. |
+| `status.order`, `status.window` | all, `max` | Which accounts appear, and which window `compact` shows. |
+| `status.max_width` | 120 | Room for the whole summary; detail is dropped to fit. |
+| `alerts.thresholds` | `[80, 95]` | % used that triggers a notification; `[]` turns alerts off. |
+| `alerts.on_reset` | `true` | Also say when a limit you were alerted about resets. |
+| `context.icon` | `⛁` | Symbol before each context meter. |
+| `context.share` | `true` | Show each agent's part of the limit (`~12% of 5h`). |
+| `resume.enabled`, `resume.prompt` | `false`, `"continue"` | Send that prompt to agents that stopped at a limit, once it resets, and only if they're still idle at the limit error. |
+| `refresh.interval_seconds` | 300 | How often limits are re-read. |
+
+Notifications follow Herdr's `[ui.toast] delivery`, which must be `"herdr"` or `"system"`.
+
+</details>
 
 ## Providers
 
 | Provider | Limits it shows | Where they come from | Tested |
 |---|---|---|---|
-| Claude Code | 5h, 7d, per-model weekly (Fable, Sonnet), plan | Claude Code itself (`claude -p` answering `get_usage`) and your statusLine, which reports the 5h and 7d windows while you work | **Live** |
-| Codex | Every window Codex reports, plan | `codex app-server` → `account/rateLimits/read`, or the last snapshot in a session log | **Live** |
-| OpenCode Go | **Estimated** 5h / 7d / 30d spend against the published Go caps | Costs recorded in the local `opencode.db`; the official meter is not read, and other machines are missing | Fixtures only |
-| Grok | Weekly credit %, monthly usage | Grok's billing endpoint, using the Grok CLI's stored sign-in. **Opt-in** | Fixtures only |
+| **Claude Code** | 5h, 7d, per-model weekly (Fable, Sonnet), plan | Claude Code itself (`claude -p` answering `get_usage`) and your statusLine | ![live](https://img.shields.io/badge/-live-2f8f4e?style=flat-square) |
+| **Codex** | Every window Codex reports, plan | `codex app-server` → `account/rateLimits/read`, or the last snapshot in a session log | ![live](https://img.shields.io/badge/-live-2f8f4e?style=flat-square) |
+| **OpenCode Go** | **Estimated** 5h / 7d / 30d spend against the published Go caps | Costs in the local `opencode.db` (the official meter isn't read) | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
+| **Grok** | Weekly credit %, monthly usage | Grok's billing endpoint with the Grok CLI's sign-in. **Opt-in** | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
 
-Token history (per model, project and session) comes from the local session records of Claude Code,
-Codex and OpenCode. API-key accounts never get invented subscription limits.
+Limits are account-wide, so they include use outside Herdr. Windows are shown separately and never
+summed. Token history comes from session records on this machine only. API-key accounts never get
+invented subscription limits, and no prices or spend estimates are shown.
 
-## What it reads
+## Privacy: what it reads
 
-Everything is a local file or the provider's own CLI. The plugin makes no network request of its
-own except for Grok, which is opt-in, and sends nothing anywhere: no telemetry.
+Everything is a local file or the provider's own CLI. The plugin makes **no network request of its
+own** (except Grok, which is opt-in) and **sends nothing anywhere**.
+
+> [!CAUTION]
+> **Never read:** `~/.claude/.credentials.json`, Codex's `auth.json`, the macOS Keychain, browser
+> cookies, or the content of any conversation. It never switches the account an agent uses, and
+> it types into an agent only if you turn on `[resume]`, and then only the resume prompt, once per
+> reset.
+
+<details>
+<summary><b>Every source, and what is taken from it</b></summary>
 
 | Source | What is taken from it |
 |---|---|
-| Claude transcripts, `<dir>/projects/**/*.jsonl` | Token counts, model, timestamp, session and project directory — for history and the context meter. Never the text of prompts or replies. |
+| Claude transcripts, `<dir>/projects/**/*.jsonl` | Token counts, model, timestamp, session, project directory, and whether the last reply was the limit error. Never the text of prompts or replies. |
 | `<dir>/sessions/<pid>.json` | The session id of a running `claude`, to find its transcript. The `.key` files beside it are never opened. |
 | `<dir>/settings.json` | Only the `statusLine` entry, and only when setup or uninstall changes it. |
 | `claude -p --safe-mode --no-session-persistence` | Answers `get_usage`: the limits and plan. Claude Code signs itself in; no prompt is sent and no session is saved. |
 | Claude Code's statusLine input | Only `rate_limits` and `context_window`. |
-| Codex sessions, `<dir>/sessions/**/rollout-*.jsonl` | Token counts, model, timestamps, session and project path. |
+| Codex sessions, `<dir>/sessions/**/rollout-*.jsonl` | Token counts, model, timestamps, session, project path, and whether a limit was reached. |
 | `codex app-server` | One `account/rateLimits/read` request. Codex signs itself in; its `auth.json` is not read. |
 | OpenCode's `opencode.db` | Token counts per session, and the costs its Go allowance is estimated from. Read-only. |
 | `~/.grok/auth.json` (**opt-in**) | The Grok CLI's sign-in, held in memory for one billing request. Never written or logged. |
-| Herdr's `config.toml` and CLI | The marked setup lines, the agent list, a pane's processes, the meters, notifications. |
-
-Never read: `~/.claude/.credentials.json`, Codex's `auth.json`, the macOS Keychain, browser
-cookies, or the content of any conversation. The plugin never switches the account an agent uses.
+| Herdr's `config.toml` and CLI | The marked setup lines, the agent list and each agent's state and title, a pane's processes, the meters, notifications. |
 
 It writes its own state (`~/.local/state/herdr/plugins/herdr_agents_tracker`), the marked lines in
 Herdr's `config.toml`, and the `statusLine` wrapper in Claude's `settings.json`.
 
-## What the numbers mean
-
-- **Limits** are what each provider reports for the whole account, including use outside Herdr.
-  Windows are shown separately, never summed or averaged.
-- **Token activity** comes from session records on this machine only, so it can be incomplete.
+</details>
 
 ## FAQ
 
-**Does it modify Herdr?**
+<details>
+<summary><b>Does it modify Herdr?</b></summary>
+
 No. Herdr's code is untouched: this is a plugin. Setup only adds lines to Herdr's `config.toml`,
 each ending with `# usage-tracker`, and `uninstall --apply` removes exactly those lines.
+</details>
 
-**Does it work without Claude Code?**
+<details>
+<summary><b>Does it work without Claude Code?</b></summary>
+
 Yes. Each provider is independent: use it with Codex, OpenCode Go or Grok alone, and accounts you
-don't have are simply not shown. Wrapping Claude's `statusLine` is only relevant if you use
-Claude Code.
+don't have are simply not shown.
+</details>
 
-**Why Python 3.11 when macOS ships 3.9?**
-The plugin uses only the standard library, including `tomllib` (added in 3.11) to read TOML
-config, so there is nothing to `pip install`. Run `brew install python` once; the install stops
-with a clear message if no 3.11+ is found.
+<details>
+<summary><b>How is "~12% of 5h" worked out?</b></summary>
 
-**Does it read my credentials or conversations?**
-No — see [What it reads](#what-it-reads). The one exception is Grok, which is opt-in.
+The agent's share of the account's tokens since the 5-hour window opened (its subagents included,
+cache reads left out because they count for little against the limit), times the window's % used.
+It's an estimate from this machine's session records, hence the `~`. Turn it off with
+`context.share = false`.
+</details>
 
-**Why does a limit differ from what the provider's website shows?**
-Limits are fetched every 5 minutes by default (`refresh.interval_seconds`) and after an agent
-finishes a turn, so they can lag briefly. OpenCode Go's numbers are estimates from local costs.
+<details>
+<summary><b>Will it type into my agents?</b></summary>
 
-## Update
+Only if you set `[resume] enabled = true`. Then, a minute after a limit resets, each agent that
+stopped at it is sent `continue`, and only if it's still idle at that limit error. An agent that's
+busy, or that you already continued yourself, is left alone.
+</details>
+
+<details>
+<summary><b>Why Python 3.11 when macOS ships 3.9?</b></summary>
+
+The plugin uses only the standard library, including `tomllib` (added in 3.11), so there is
+nothing to `pip install`. Run `brew install python` once; the install stops with a clear message
+if no 3.11+ is found.
+</details>
+
+<details>
+<summary><b>Why does a limit differ from the provider's website?</b></summary>
+
+Limits are re-read every 5 minutes and after each turn, so they can lag briefly. OpenCode Go's
+numbers are estimates from local costs.
+</details>
+
+## Update, remove, troubleshoot
+
+**Update** (your settings are kept; see [CHANGELOG.md](CHANGELOG.md)):
 
 ```sh
 herdr plugin install VHemanth45/herdr_agents_tracker
 ```
 
-Your settings are kept, and setup can be re-run safely. [CHANGELOG.md](CHANGELOG.md) lists what
-changed per release.
-
-## Remove
+**Remove** (backs up each file first and removes only lines marked `# usage-tracker`):
 
 ```sh
 root=$(herdr plugin list --plugin herdr_agents_tracker --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["plugins"][0]["plugin_root"])')
@@ -199,24 +384,24 @@ root=$(herdr plugin list --plugin herdr_agents_tracker --json | python3 -c 'impo
 "$root/bin/usage-tracker" uninstall --apply --purge  # also delete the plugin's config and state
 ```
 
-It backs up each file first and removes only the lines marked `# usage-tracker`.
+**Something off?**
 
-## Troubleshooting
-
-- Run **Usage: show diagnostics** (or `bin/usage-tracker diagnostics`): it shows each account's
-  source, last attempt, errors, next refresh, history coverage and the state of the integration.
+- Run **Usage: show diagnostics** (or `bin/usage-tracker diagnostics`): each account's source,
+  last attempt, errors, next refresh, history coverage and the state of the integration.
   Credentials are never shown.
 - Collector log: `~/.local/state/herdr/plugins/herdr_agents_tracker/collector.log`.
-- Nothing in the tab bar? Herdr hides the summary when it does not fit beside the tabs — try a
-  smaller `status.max_width` or a shorter `status.format`.
+- Nothing in the tab bar? Herdr hides the summary when it doesn't fit beside the tabs; try a
+  smaller `status.max_width` or `status.format = "compact"`.
 
 ## Roadmap
 
-Ideas, not promises — open an issue to vote for one or to help:
+Ideas, not promises. Open an issue to vote for one or to help:
 
-- More providers: Gemini CLI, GitHub Copilot CLI, Cursor.
-- Live testing for OpenCode Go and Grok (only tested against fixtures so far).
-- Context meters for more agents than Claude Code and Codex.
+- [ ] **Turns left** per agent: `~9 turns left` before the 5-hour limit, at its recent pace.
+- [ ] **Runaway-agent alert**: one agent using a large share of the limit in minutes.
+- [ ] **Usage by git branch or worktree**: "feature/login used 23% of this week's limit".
+- [ ] **Daily budget** for the weekly limit: `9%/day keeps you under until the reset`.
+- [ ] More providers: Gemini CLI, GitHub Copilot CLI, Cursor. Live testing for OpenCode Go and Grok.
 
 Adding a provider is one adapter module; [CONTRIBUTING.md](CONTRIBUTING.md) explains how.
 
@@ -224,7 +409,7 @@ Adding a provider is one adapter module; [CONTRIBUTING.md](CONTRIBUTING.md) expl
 
 - Tests: `python3 -m unittest discover -s tests` (synthetic fixtures and temporary directories;
   they never touch real accounts or Herdr config).
-- [docs/internals.md](docs/internals.md) — how it works, the modules, adding a provider, and the
+- [docs/internals.md](docs/internals.md): how it works, the modules, adding a provider, and the
   Herdr 0.8.2 behavior this builds on.
 
 ## License
@@ -232,3 +417,7 @@ Adding a provider is one adapter module; [CONTRIBUTING.md](CONTRIBUTING.md) expl
 MIT. Data-source research drew on
 [senna-lang/herdr-agent-usage](https://github.com/senna-lang/herdr-agent-usage) (MIT, © 2026 senna)
 and on Orca's usage view as a behavioral reference; no code from either is included.
+
+<div align="center">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:8a6fbf,100:3b2a5c&height=110&section=footer" alt="" width="100%">
+</div>

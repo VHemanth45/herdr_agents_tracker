@@ -66,11 +66,21 @@ def refresh(cfg, state_dir, force=False, with_history=True, providers=None):
             entries[profile["id"]] = entry | {"provider": profile["provider"], "label": profile["label"]}
             if isinstance(result, ProviderError):
                 log(state_dir, f"{profile['id']}: {result.state}: {result.message}")
+            else:
+                record_limits(profile, result, state_dir, now)
         known = {p["id"] for p in cfg["profiles"]}
         cache.save(state_dir, {k: v for k, v in entries.items() if k in known})
         if with_history:
             update_history(profiles, state_dir)
         return True
+
+
+def record_limits(profile, result, state_dir, now):
+    try:
+        with history.Store(history.db_path(state_dir, profile["id"])) as store:
+            store.record_limits(result.get("windows") or [], result.get("observed_at") or now)
+    except Exception:
+        log(state_dir, f"{profile['id']}: saving limits failed\n{traceback.format_exc()}")
 
 
 def update_history(profiles, state_dir):
@@ -93,7 +103,8 @@ def update_history(profiles, state_dir):
 
 def entries(cfg, state_dir, now):
     """Cached entries overlaid with cheap local reads (e.g. Claude's statusline snapshot),
-    so the status line reflects them immediately instead of at the next collector run."""
+    so the status line reflects them immediately instead of at the next collector run; each
+    window gets its saved reading from a fifth of a window ago, for the pace forecast."""
     data = cache.load(state_dir)
     for profile in cfg["profiles"]:
         quick = getattr(PROVIDERS[profile["provider"]], "quick", None)
@@ -112,4 +123,8 @@ def entries(cfg, state_dir, now):
             snap = snap | {"windows": windows + list(cached.values())}
             data[profile["id"]] = cache.apply(entry, snap, now, cfg["refresh"]["interval_seconds"]) | {
                 "next_at": entry.get("next_at", 0)}  # an in-memory overlay must not postpone the real refresh
+    for profile in cfg["profiles"]:
+        entry = data.get(profile["id"])
+        if profile["enabled"] and entry and entry.get("windows"):
+            entry["windows"] = history.with_baselines(state_dir, profile["id"], entry["windows"], now)
     return data

@@ -1,5 +1,6 @@
 """Text formatting shared by the status line and the dashboard, and the one-line status itself."""
 
+import math
 import time
 import unicodedata
 
@@ -121,18 +122,35 @@ def pick(windows, mode, now):
 
 
 def forecast(w, now):
-    """Where the window is heading at its average rate since it started: (% used at the reset,
-    seconds until 100% when that comes before the reset, else None). None while less than a tenth
-    of the window has passed, which is too early to tell."""
+    """Where the window is heading at its recent rate (since the saved reading in "base", a fifth of
+    the window ago), else at its average rate since it started: (% used at the reset, seconds until
+    100% when that comes before the reset, else None). None while less than a tenth of the window
+    has passed, which is too early to tell."""
     used, reset, minutes = w.get("used"), w.get("resets_at"), w.get("minutes")
     if used is None or not (reset and minutes) or reset <= now:
         return None
     elapsed = now - (reset - minutes * 60)
     if elapsed < minutes * 6:  # a tenth of the window, in seconds
         return None
-    rate = used / elapsed
+    base = w.get("base")
+    rate = max(used - base[1], 0) / (now - base[0]) if base and base[0] < now else used / elapsed
     eta = (100 - used) / rate if rate else None
     return used + rate * (reset - now), (eta if eta is not None and now + eta < reset else None)
+
+
+SPARK = "▁▂▃▄▅▆▇█"
+
+
+def trend(readings, start, end, now, width):
+    """A sparkline of % used across a window, one column per equal slice of [start, end): each shows
+    the latest reading by the slice's end, height by eighths of 100%. Slices before the first
+    reading and after now are blank. readings: [(first seen, last seen, % used)], oldest first."""
+    out = []
+    for i in range(width):
+        t0, t1 = start + (end - start) * i / width, start + (end - start) * (i + 1) / width
+        value = None if t0 > now else next((used for first, _, used in reversed(readings) if first < t1), None)
+        out.append(" " if value is None else SPARK[min(7, max(0, math.ceil(value / 12.5) - 1))])
+    return "".join(out)
 
 
 def window_text(w, entry, now, meter="", when=True, pace=False):

@@ -5,6 +5,25 @@ before 1.0, a minor bump may change config keys or state layout, and the release
 
 ## Unreleased
 
+- **Each agent's part of the limit**: after every turn the context meter adds the agent's share
+  of its account's shortest limit window, e.g. `⛁ 28% 72k · ~12% of 5h` (its sessions' tokens in
+  the window, subagents included and cache reads left out, over the account's, times the window's
+  %). `context.share = false` turns it off.
+- **Agents stopped at a limit**: when an agent's last reply is its provider's usage-limit error,
+  its meter shows when the limit resets, and a minute after the reset one notification names the
+  agents that were waiting (in place of the plain reset notice). With `[resume] enabled = true`,
+  each one still idle at that error is sent `resume.prompt` ("continue"). Off by default.
+- **Reset notifications**: when a limit you were alerted about reaches its reset time, a Herdr
+  notification says so (`Claude 5h limit has reset`, with the account's other limits).
+  `alerts.on_reset = false` turns them off.
+- **Pace from the recent rate**: each limit reading is saved (a new `limits` table in the
+  per-account history database), and the forecast uses the rate over the last fifth of the
+  window instead of the average since it started, so a recent burst or a quiet spell shows up.
+  Until such a reading exists, the average is used as before. The dashboard draws a trend line of
+  each limit across its window.
+- **`status --json` and `status --check [PCT]`** for scripts: every account's limits and forecast
+  as JSON, and exit codes `0` / `10` (at PCT% or more, default 80) / `11` (used up) / `20` (no
+  fresh data); `--profile` narrows them to one account. Plain `status` is unchanged.
 - **Refresh shortcut**: setup adds `prefix+shift+u` (or `prefix+shift+y` if that is taken) to
   re-read every account now. Re-run setup to get it.
 - **Context meter after a compact**: it no longer keeps the pre-compact reading. Claude Code

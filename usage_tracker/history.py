@@ -7,6 +7,9 @@ files (truncated or replaced), and responses copied into resumed sessions never 
 
 Keys starting with "~" are fallback estimates (derived from cumulative totals); they are
 ignored for any session that also has exact per-response records.
+
+The limits table keeps each limit reading the collector takes, one row per unchanged run
+(first and last time it was seen), for the recent-rate forecast and the dashboard's trend line.
 """
 
 import json
@@ -24,7 +27,10 @@ CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
 CREATE INDEX IF NOT EXISTS events_session ON events(session);
 CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, inode INTEGER, offset INTEGER, ctx TEXT);
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS limits (window TEXT NOT NULL, resets_at INTEGER NOT NULL, first INTEGER NOT NULL,
+  last INTEGER NOT NULL, used REAL NOT NULL, PRIMARY KEY (window, first));
 """
+SAME_WINDOW = 3600  # reset times this close apart are one window (providers round them differently)
 UPSERT = (f"INSERT INTO events ({', '.join(COLUMNS)}) VALUES ({', '.join(':' + c for c in COLUMNS)}) "
           "ON CONFLICT(key) DO UPDATE SET ts = MIN(events.ts, excluded.ts), "
           + ", ".join(f"{f} = MAX(events.{f}, excluded.{f})" for f in TOKEN_FIELDS)
@@ -61,6 +67,23 @@ class Store:
     def set_meta(self, key, value):
         with self.db:
             self.db.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, str(value)))
+
+    def record_limits(self, windows, ts):
+        """Save one reading of each limit; an unchanged reading extends the previous row."""
+        ts = int(ts)
+        with self.db:
+            for w in windows:
+                if w.get("used") is None or not w.get("resets_at"):
+                    continue
+                row = self.db.execute("SELECT first, resets_at, used, last FROM limits WHERE window = ? "
+                                      "ORDER BY first DESC LIMIT 1", (w["id"],)).fetchone()
+                if row and ts <= row[3]:
+                    continue  # an older reading than the one already saved
+                if row and abs(row[1] - w["resets_at"]) <= SAME_WINDOW and row[2] == w["used"]:
+                    self.db.execute("UPDATE limits SET last = ? WHERE window = ? AND first = ?", (ts, w["id"], row[0]))
+                else:
+                    self.db.execute("INSERT INTO limits VALUES (?, ?, ?, ?, ?)",
+                                    (w["id"], int(w["resets_at"]), ts, ts, w["used"]))
 
     def scan(self, path, parse):
         """Ingest the complete new lines of a JSONL file; parse(line_bytes, ctx) -> events.
@@ -136,3 +159,49 @@ def coverage(state_dir, profiles):
             finally:
                 con.close()
     return out
+
+
+def _query(state_dir, profile_id, query, args):
+    path = db_path(state_dir, profile_id)
+    if not path.exists():
+        return []
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    try:
+        return con.execute(query, args).fetchall()
+    except sqlite3.Error:
+        return []  # created before the limits table existed, or being created by the first collector run
+    finally:
+        con.close()
+
+
+def with_baselines(state_dir, profile_id, windows, now):
+    """Windows with "base": [time, % used] a fifth of the window ago, when a saved reading from this
+    window covers that time; fmt.forecast then uses the recent rate instead of the average."""
+    out = []
+    for w in windows:
+        minutes, reset = w.get("minutes"), w.get("resets_at")
+        if w.get("used") is not None and minutes and reset and reset > now:
+            before = now - minutes * 12  # a fifth of the window, in seconds
+            row = next(iter(_query(state_dir, profile_id, "SELECT last, used, resets_at FROM limits WHERE window = ? "
+                                    "AND first <= ? ORDER BY first DESC LIMIT 1", (w["id"], int(before)))), None)
+            if row and abs(row[2] - reset) <= SAME_WINDOW:
+                w = w | {"base": [min(before, row[0]), row[1]]}
+        out.append(w)
+    return out
+
+
+def limit_readings(state_dir, profile_id, window):
+    """Saved readings of this window, oldest first: [(first, last, % used)]."""
+    reset = window.get("resets_at") or 0
+    return _query(state_dir, profile_id, "SELECT first, last, used FROM limits WHERE window = ? "
+                   "AND ABS(resets_at - ?) <= ? ORDER BY first", (window["id"], int(reset), SAME_WINDOW))
+
+
+def session_share(state_dir, profile_id, sessions, since):
+    """(tokens of these sessions, tokens of the whole account) since `since`, cache reads left out."""
+    marks = ", ".join("?" * len(sessions)) or "NULL"
+    rows = _query(state_dir, profile_id,
+                  f"SELECT SUM(CASE WHEN session IN ({marks}) THEN n END), SUM(n) FROM (SELECT session, "
+                  f"IFNULL(input, 0) + IFNULL(cache_write, 0) + IFNULL(output, 0) AS n FROM events "
+                  f"WHERE ts >= ? AND {EXACT_ONLY})", (*sessions, int(since)))
+    return tuple(v or 0 for v in rows[0]) if rows else (0, 0)

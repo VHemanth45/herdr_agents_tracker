@@ -49,7 +49,7 @@ def cfg(**status):
     return {"status": {"order": [], "format": "compact", "window": "max", "max_width": 200, "bar": "none",
                        "bar_width": 10, **status},
             "refresh": {"interval_seconds": 300, "stale_seconds": 1800}, "alerts": {"thresholds": [80, 95]},
-            "context": {"icon": "⛁"},
+            "context": {"icon": "⛁"}, "resume": {"enabled": False, "prompt": "continue"},
             "error": None}
 
 

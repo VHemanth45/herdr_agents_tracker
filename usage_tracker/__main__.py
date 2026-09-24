@@ -13,7 +13,12 @@ from . import PLUGIN_ID, VERSION, agents, alerts, cache, collect, config, fmt, h
 from .providers import PROVIDERS, claude
 
 
+CHECK_OK, CHECK_NEAR, CHECK_FULL, CHECK_UNKNOWN = 0, 10, 11, 20
+
+
 def cmd_status(args):
+    if args.json or args.check is not None:
+        return report(args)
     # Herdr hides a tab-bar entry that fails or times out, so print one line and exit 0. Only a
     # --part without an account (or a later part when something failed) exits 1 to stay hidden.
     first = args.part in (None, "1")
@@ -26,13 +31,60 @@ def cmd_status(args):
         print(line, flush=True)
         if first:  # one collector request and alert check per refresh cycle, not one per entry
             cache.request_refresh(state_dir, entries, [p for p in cfg["profiles"] if p["enabled"]], now)
-            alerts.check(cfg["profiles"], entries, cfg, now, state_dir)
+            covered = agents.release_waiting(cfg, state_dir, now)
+            alerts.check(cfg["profiles"], entries, cfg, now, state_dir, covered=covered)
     except Exception as exc:
         if not first:
             return 1
         print(f"Usage: error ({type(exc).__name__}, see Usage diagnostics)", flush=True)
         traceback.print_exc()
     return 0
+
+
+def report(args):
+    """For scripts: the accounts as JSON (--json) and/or an exit code for the highest limit (--check):
+    0 below PCT, 10 at or above it, 11 when a limit is used up, 20 when no account has fresh data.
+    Accounts without fresh data are left out of the check."""
+    cfg, state_dir, now = config.load(), config.state_dir(), time.time()
+    entries = collect.entries(cfg, state_dir, now)
+    profiles = [p for p in cfg["profiles"] if p["enabled"] and (not args.profile or p["id"] in args.profile)]
+    cache.request_refresh(state_dir, entries, profiles, now)
+    accounts = [account(p, entries.get(p["id"]) or {}, cfg, now) for p in profiles]
+    if args.json:
+        print(json.dumps({"generated_at": int(now), "accounts": accounts}, indent=2))
+    else:
+        print(fmt.status_line(profiles, entries, cfg, now) or "no accounts")
+    if args.check is None:
+        return CHECK_OK
+    used = [w["used"] for a in accounts if not a["stale"] for w in a["windows"]]
+    if not used:
+        return CHECK_UNKNOWN
+    return CHECK_FULL if max(used) >= 100 else CHECK_NEAR if max(used) >= args.check else CHECK_OK
+
+
+def account(profile, entry, cfg, now):
+    updated = entry.get("updated_at")
+    windows = []
+    for w in fmt.current(entry.get("windows") or [], now):
+        ahead = fmt.forecast(w, now) or (None, None)
+        windows.append({"id": w["id"], "label": w["label"], "used": w["used"], "resets_at": w.get("resets_at"),
+                        "minutes": w.get("minutes"),
+                        "at_reset": None if ahead[0] is None else round(min(ahead[0], 100), 1),
+                        "full_in_seconds": None if ahead[1] is None else int(ahead[1])})
+    return {"id": profile["id"], "provider": profile["provider"], "label": profile["label"],
+            "plan": entry.get("plan"), "state": entry.get("state") or "pending", "error": entry.get("error"),
+            "estimated": bool(entry.get("estimated")), "updated_at": updated,
+            "stale": not updated or now - updated > cfg["refresh"]["stale_seconds"], "windows": windows}
+
+
+def check_level(value):
+    try:
+        level = float(value)
+    except ValueError:
+        level = -1
+    if not 0 < level <= 100:
+        raise argparse.ArgumentTypeError("use a percentage from 1 to 100")
+    return level
 
 
 def part(value):
@@ -260,6 +312,11 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("status", help="print the one-line tab-bar summary")
     p.add_argument("--part", type=part, help='only the account at this position ("2"), or from it on ("3-")')
+    p.add_argument("--json", action="store_true", help="print every account's limits as JSON")
+    p.add_argument("--check", type=check_level, nargs="?", const=80.0, metavar="PCT",
+                   help="exit 10 when a limit is at PCT%% or more (default 80), 11 when one is used up, "
+                        "20 when no account has fresh data, else 0")
+    p.add_argument("--profile", action="append", help="only this account (repeatable; with --json or --check)")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("refresh", help="collect limits and history now")
     p.add_argument("--force", action="store_true", help="refresh every account, not just the due ones")

@@ -24,6 +24,7 @@ Limits come from each tool itself where possible: `codex app-server` for Codex a
 | `model.py` | Normalized windows, events, provenance, `ProviderError` states |
 | `cache.py` | Atomic JSON writes, lock, backoff (`2^n × interval`, capped at 1 h, honors `Retry-After`), collector spawning |
 | `collect.py` | Collection runs; failures keep the last good snapshot; secrets redacted from logs |
+| `web.py` | The one HTTPS request of the opt-in token providers (Grok, Gemini, Cursor); 401/403 → sign-in needed |
 | `history.py` | Per-profile SQLite; byte-offset incremental reads; partial and malformed lines are safe |
 | `fmt.py` | Status line, pace forecast and shared formatting |
 | `alerts.py` | Low-limit notifications, once per threshold and window |

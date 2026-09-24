@@ -85,6 +85,23 @@ class Store:
                     self.db.execute("INSERT INTO limits VALUES (?, ?, ?, ?, ?)",
                                     (w["id"], int(w["resets_at"]), ts, ts, w["used"]))
 
+    def scan_json(self, path, parse):
+        """Ingest a JSON file its tool rewrites whole, when it changed; parse(data) -> events.
+        Keys make re-reading a grown file harmless."""
+        try:
+            st = os.stat(path)
+            stamp = f"{st.st_mtime_ns}:{st.st_size}"
+            if self.meta(f"json:{path}") == stamp:
+                return 0
+            with open(path, "rb") as f:
+                events = list(parse(json.load(f)))
+        except (OSError, ValueError, TypeError, AttributeError, KeyError):
+            return 0  # unreadable, or caught mid-write without an atomic rename: next pass
+        with self.db:
+            self.db.executemany(UPSERT, [e for e in events if e["ts"] > 0])
+            self.db.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (f"json:{path}", stamp))
+        return len(events)
+
     def scan(self, path, parse):
         """Ingest the complete new lines of a JSONL file; parse(line_bytes, ctx) -> events.
 

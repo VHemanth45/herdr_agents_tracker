@@ -1,0 +1,11 @@
+{
+  "sessionId": "aaaa1111-0000-4000-8000-000000000000",
+  "projectHash": "9b1c",
+  "startTime": "2026-04-01T09:00:00.000Z",
+  "lastUpdated": "2026-04-01T09:05:00.000Z",
+  "messages": [
+    {"id": "old-u1", "timestamp": "2026-04-01T09:00:05.000Z", "type": "user", "content": "hi"},
+    {"id": "old-g1", "timestamp": "2026-04-01T09:00:09.000Z", "type": "gemini", "content": "hello",
+     "tokens": {"input": 1000, "output": 20, "cached": 0, "thoughts": 0, "tool": 0, "total": 1020}, "model": "gemini-2.5-pro"}
+  ]
+}

@@ -14,7 +14,7 @@ body:
     attributes:
       label: Provider
       multiple: true
-      options: [Claude Code, Codex, OpenCode Go, Grok, Not provider-specific]
+      options: [Claude Code, Codex, OpenCode Go, Copilot, Amp, Gemini, Cursor, Grok, Not provider-specific]
     validations:
       required: true
   - type: textarea

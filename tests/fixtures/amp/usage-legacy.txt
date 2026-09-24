@@ -1,0 +1,2 @@
+Signed in as **fixture@example.test**
+Amp Free: `$8/$10` remaining (replenishes +$0.5/hour)

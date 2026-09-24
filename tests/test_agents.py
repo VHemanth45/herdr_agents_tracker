@@ -238,6 +238,10 @@ class Codex(IsolatedTest):
             found = {os.path.realpath(f) for f in agents.open_files(os.getpid())}
         self.assertIn(os.path.realpath(path), found)
 
+    def test_no_processes_when_herdr_cannot_answer(self):
+        with mock.patch("usage_tracker.integrate.herdr_bin", side_effect=integrate.SetupError("herdr binary not found")):
+            self.assertEqual(agents.pids("w2:p1", "codex"), [])
+
     def test_a_finished_turn_updates_the_meter_and_refreshes_its_provider(self):
         config = cfg() | {"profiles": [profile("codex", "codex")]}
         with mock.patch.object(agents, "context", side_effect=lambda pane, kind, *_: (28.0, 72341) if kind == "codex" else None), \

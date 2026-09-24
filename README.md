@@ -12,6 +12,10 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-live-d97757?style=flat-square&logo=claude&logoColor=white)](#providers)
 [![Codex](https://img.shields.io/badge/Codex-live-10a37f?style=flat-square)](#providers)
 [![OpenCode Go](https://img.shields.io/badge/OpenCode_Go-estimated-555?style=flat-square)](#providers)
+[![Copilot](https://img.shields.io/badge/Copilot-via_gh-555?style=flat-square)](#providers)
+[![Amp](https://img.shields.io/badge/Amp-via_CLI-555?style=flat-square)](#providers)
+[![Gemini](https://img.shields.io/badge/Gemini-opt--in-555?style=flat-square)](#providers)
+[![Cursor](https://img.shields.io/badge/Cursor-opt--in-555?style=flat-square)](#providers)
 [![Grok](https://img.shields.io/badge/Grok-opt--in-555?style=flat-square)](#providers)
 [![dependencies](https://img.shields.io/badge/dependencies-none-2f8f4e?style=flat-square)](#install)
 [![telemetry](https://img.shields.io/badge/telemetry-none-2f8f4e?style=flat-square)](#privacy-what-it-reads)
@@ -257,7 +261,7 @@ lists every option with comments.
 
 | Option | Default | What it does |
 |---|---|---|
-| `[[profiles]]` | auto-detected | One per account, each with its own `dir` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, …). With none set, `~/.claude`, `~/.codex` and `~/.local/share/opencode` are used. Grok is opt-in. |
+| `[[profiles]]` | auto-detected | One per account, each with its own `dir` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, …). With none set, `~/.claude`, `~/.codex`, `~/.local/share/opencode`, `~/.copilot` and `~/.local/share/amp` are used. Gemini, Cursor and Grok are opt-in. |
 | `label`, `icon` | provider name | What the tab bar shows. With a Nerd Font, `""` / `""` are the Claude / OpenAI logos. |
 | `status.format` | `compact` | `compact` (one window), `detailed` (all windows) or `split` (5h and weekly in one bar). Also per profile. |
 | `status.bar`, `status.bar_width` | `blocks`, 10 | `blocks`, `color` (coloured squares) or `none`; width in columns. |
@@ -281,6 +285,10 @@ Notifications follow Herdr's `[ui.toast] delivery`, which must be `"herdr"` or `
 | **Claude Code** | 5h, 7d, per-model weekly (Fable, Sonnet), plan | Claude Code itself (`claude -p` answering `get_usage`) and your statusLine | ![live](https://img.shields.io/badge/-live-2f8f4e?style=flat-square) |
 | **Codex** | Every window Codex reports, plan | `codex app-server` → `account/rateLimits/read`, or the last snapshot in a session log | ![live](https://img.shields.io/badge/-live-2f8f4e?style=flat-square) |
 | **OpenCode Go** | **Estimated** 5h / 7d / 30d spend against the published Go caps | Costs in the local `opencode.db` (the official meter isn't read) | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
+| **GitHub Copilot CLI** | Monthly premium requests (chat and completions on Copilot Free), plan | `gh api /copilot_internal/user`: the account `gh` is signed in to | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
+| **Amp** | Amp Free (daily), subscription or tier usage, plan | `amp usage` | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
+| **Gemini CLI** | Daily quota per model (Pro, Flash, …), plan | Google's Code Assist quota with the Gemini CLI's sign-in. Google sign-in accounts on a Code Assist plan only (Google stopped serving personal accounts through Gemini CLI in 2026). **Opt-in** | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
+| **Cursor** | Included usage of the billing cycle: total, Auto and API, plan | Cursor's dashboard service with Cursor's sign-in. No token history (Cursor keeps none on disk). **Opt-in** | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
 | **Grok** | Weekly credit %, monthly usage | Grok's billing endpoint with the Grok CLI's sign-in. **Opt-in** | ![fixtures](https://img.shields.io/badge/-fixtures-777?style=flat-square) |
 
 Limits are account-wide, so they include use outside Herdr. Windows are shown separately and never
@@ -290,11 +298,11 @@ invented subscription limits, and no prices or spend estimates are shown.
 ## Privacy: what it reads
 
 Everything is a local file or the provider's own CLI. The plugin makes **no network request of its
-own** (except Grok, which is opt-in) and **sends nothing anywhere**.
+own** (except the opt-in Gemini, Cursor and Grok) and **sends nothing anywhere**.
 
 > [!CAUTION]
-> **Never read:** `~/.claude/.credentials.json`, Codex's `auth.json`, the macOS Keychain, browser
-> cookies, or the content of any conversation. It never switches the account an agent uses, and
+> **Never read:** `~/.claude/.credentials.json`, Codex's `auth.json`, the GitHub CLI's or Amp's
+> sign-in, the macOS Keychain, browser cookies, or the content of any conversation. It never switches the account an agent uses, and
 > it types into an agent only if you turn on `[resume]`, and then only the resume prompt, once per
 > reset.
 
@@ -312,6 +320,12 @@ own** (except Grok, which is opt-in) and **sends nothing anywhere**.
 | `codex app-server` | One `account/rateLimits/read` request. Codex signs itself in; its `auth.json` is not read. |
 | OpenCode's `opencode.db` | Token counts per session, and the costs its Go allowance is estimated from. Read-only. |
 | `~/.grok/auth.json` (**opt-in**) | The Grok CLI's sign-in, held in memory for one billing request. Never written or logged. |
+| Copilot's `session-store.db`, `session-state/*/events.jsonl` | Token counts, model, timestamp, session and project directory. Read-only. |
+| `gh api /copilot_internal/user` | Copilot's quota and plan. The GitHub CLI signs itself in; no token is read. |
+| `amp usage`, Amp's `threads/T-*.json` | The balance text Amp prints; token counts, model, timestamp and project from thread files. `secrets.json` is not read. |
+| Gemini CLI's `tmp/*/chats/**` session files | Token counts, model, timestamp, session and project directory. |
+| `~/.gemini/oauth_creds.json` (**opt-in**) | The access token only, held in memory for the two quota requests. Never refreshed, written or logged. |
+| Cursor's `state.vscdb` (**opt-in**) | The access token and plan name, read-only; the token is held in memory for one request. Never refreshed, written or logged. |
 | Herdr's `config.toml` and CLI | The marked setup lines, the agent list and each agent's state and title, a pane's processes, the meters, notifications. |
 
 It writes its own state (`~/.local/state/herdr/plugins/herdr_agents_tracker`), the marked lines in
@@ -331,7 +345,7 @@ each ending with `# usage-tracker`, and `uninstall --apply` removes exactly thos
 <details>
 <summary><b>Does it work without Claude Code?</b></summary>
 
-Yes. Each provider is independent: use it with Codex, OpenCode Go or Grok alone, and accounts you
+Yes. Each provider is independent: use it with Codex, Copilot, Amp, Gemini or any other alone, and accounts you
 don't have are simply not shown.
 </details>
 
@@ -401,7 +415,7 @@ Ideas, not promises. Open an issue to vote for one or to help:
 - [ ] **Runaway-agent alert**: one agent using a large share of the limit in minutes.
 - [ ] **Usage by git branch or worktree**: "feature/login used 23% of this week's limit".
 - [ ] **Daily budget** for the weekly limit: `9%/day keeps you under until the reset`.
-- [ ] More providers: Gemini CLI, GitHub Copilot CLI, Cursor. Live testing for OpenCode Go and Grok.
+- [ ] Live testing for OpenCode Go, Copilot, Amp, Gemini, Cursor and Grok.
 
 Adding a provider is one adapter module; [CONTRIBUTING.md](CONTRIBUTING.md) explains how.
 

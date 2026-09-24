@@ -98,8 +98,11 @@ def from_statusline(payload):
 
 def pids(pane_id, name):
     """Process ids of the pane's foreground processes whose command line mentions `name`."""
-    code, out, _ = integrate.herdr("pane", "process-info", "--pane", pane_id)
-    info = json.loads(out or "{}").get("result", {}).get("process_info", {}) if code == 0 else {}
+    try:
+        code, out, _ = integrate.herdr("pane", "process-info", "--pane", pane_id)
+        info = json.loads(out or "{}").get("result", {}).get("process_info", {}) if code == 0 else {}
+    except (ValueError, integrate.SetupError):  # Herdr missing, hung, or answered garbage
+        return []
     return [p["pid"] for p in info.get("foreground_processes", []) if name in (p.get("cmdline") or "")]
 
 

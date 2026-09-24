@@ -20,11 +20,14 @@ class IsolatedTest(unittest.TestCase):
         self.conf = self.tmp / "config"
         self.env = {k: os.environ.get(k) for k in ("HERDR_PLUGIN_STATE_DIR", "HERDR_PLUGIN_CONFIG_DIR",
                                                    "HERDR_CONFIG_PATH", "CODEX_BIN", "FAKE_CODEX_MODE",
-                                                   "CLAUDE_BIN", "FAKE_CLAUDE_MODE", "HERDR_SOCKET_PATH")}
+                                                   "CLAUDE_BIN", "FAKE_CLAUDE_MODE", "HERDR_SOCKET_PATH",
+                                                   "GH_BIN", "FAKE_GH_MODE", "AMP_BIN", "FAKE_AMP_MODE")}
         os.environ["HERDR_PLUGIN_STATE_DIR"] = str(self.state)
         os.environ["HERDR_SOCKET_PATH"] = str(self.tmp / "no-herdr.sock")  # never reach a live Herdr
         os.environ["HERDR_PLUGIN_CONFIG_DIR"] = str(self.conf)
         os.environ["CLAUDE_BIN"] = str(FIXTURES / "claude/fake-claude.py")  # never the real Claude Code
+        os.environ["GH_BIN"] = str(FIXTURES / "copilot/fake-gh.py")  # never the real GitHub account
+        os.environ["AMP_BIN"] = str(FIXTURES / "amp/fake-amp.py")
 
     def tearDown(self):
         for key, value in self.env.items():

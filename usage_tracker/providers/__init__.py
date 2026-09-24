@@ -10,10 +10,11 @@ quick(profile, state_dir)  optional: cheap local limits read used directly by th
 AUTO_ENABLE     optional, default True; False keeps a detected account out of automatic discovery
 ICON            optional: short mark shown instead of the account name in the tab bar
 
-To add a provider (Gemini, Cursor, Copilot, ...), add a module and register it here.
+To add a provider (Kiro, Qwen, ...), add a module and register it here.
 The status line and dashboard only use this interface, so they need no changes.
 """
 
-from . import claude, codex, grok, opencode
+from . import amp, claude, codex, copilot, cursor, gemini, grok, opencode
 
-PROVIDERS = {"claude": claude, "codex": codex, "opencode": opencode, "grok": grok}
+PROVIDERS = {"claude": claude, "codex": codex, "opencode": opencode, "copilot": copilot, "amp": amp,
+             "gemini": gemini, "cursor": cursor, "grok": grok}

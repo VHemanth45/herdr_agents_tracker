@@ -1,0 +1,5 @@
+{"enabled": true, "billingCycleStart": "1789430400000", "billingCycleEnd": "1792022400000",
+ "planUsage": {"totalSpend": 8000, "includedSpend": 8000, "bonusSpend": 0, "limit": 40000, "remaining": 32000,
+               "totalPercentUsed": 20, "autoPercentUsed": 12.5, "apiPercentUsed": 7.5},
+ "spendLimitUsage": {"limitType": "user", "individualLimit": 5000, "individualRemaining": 1000, "individualUsed": 4000},
+ "autoBucketModels": []}

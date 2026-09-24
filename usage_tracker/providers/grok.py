@@ -8,11 +8,10 @@ expired the account shows "sign-in needed" until `grok` refreshes it. No local h
 import json
 import os
 import time
-import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .. import model
+from .. import model, web
 from ..model import ProviderError
 
 NAME = "Grok"
@@ -22,7 +21,6 @@ CAPABILITIES = ("limits: weekly credit % and monthly usage from the Grok CLI bil
                 "(uses the CLI's stored sign-in, never refreshed or persisted); history: none")
 BILLING_URL = (os.environ.get("GROK_CLI_CHAT_PROXY_BASE_URL") or "https://cli-chat-proxy.grok.com/v1").rstrip("/") \
     + "/billing?format=credits"
-TIMEOUT = 10
 
 
 def detect(directory):
@@ -49,22 +47,15 @@ def limits(profile, state_dir, opener=urllib.request.urlopen):
     expires = model.iso_ts(entry.get("expires_at"))
     if expires and expires <= time.time():
         raise ProviderError("auth", "Grok sign-in expired: run `grok` to refresh it")
-    headers = {"Authorization": f"Bearer {entry['key']}", "X-XAI-Token-Auth": "xai-grok-cli",
-               "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {entry['key']}", "X-XAI-Token-Auth": "xai-grok-cli"}
     if entry.get("user_id"):
         headers["x-userid"] = str(entry["user_id"])
     try:
-        with opener(urllib.request.Request(BILLING_URL, headers=headers), timeout=TIMEOUT) as resp:
-            data = json.loads(resp.read())
-    except urllib.error.HTTPError as exc:
-        exc.close()  # release the error response
-        if exc.code in (401, 403):
-            raise ProviderError("auth", f"Grok rejected the stored sign-in (HTTP {exc.code}): run `grok`") from None
-        retry = exc.headers.get("Retry-After") if exc.headers else None
-        raise ProviderError("error", f"Grok billing request failed (HTTP {exc.code})",
-                            retry_after=int(retry) if retry and retry.isdigit() else None) from None
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-        raise ProviderError("error", f"Grok billing request failed: {type(exc).__name__}") from None
+        data = web.fetch_json("Grok billing", BILLING_URL, headers, opener=opener)
+    except ProviderError as exc:
+        if exc.state == "auth":
+            exc.message += ": run `grok`"
+        raise
     return parse_billing(data.get("config") if isinstance(data.get("config"), dict) else data)
 
 

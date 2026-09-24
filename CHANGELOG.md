@@ -5,6 +5,14 @@ before 1.0, a minor bump may change config keys or state layout, and the release
 
 ## Unreleased
 
+- **Four more providers**: GitHub Copilot CLI (monthly premium requests via `gh api`, token
+  history from its session records), Amp (Amp Free and subscription usage via `amp usage`, history
+  from thread files), and opt-in Gemini CLI (daily quota per model, history from session files)
+  and Cursor (included usage of the billing cycle). Copilot and Amp are found automatically; Gemini
+  and Cursor read the tool's stored sign-in, so they need a `[[profiles]]` entry.
+- **Fix**: a finished agent turn no longer fails when Herdr can't report the pane's processes
+  (missing, hung or restarting). This also made the tests fail on CI.
+
 - **Each agent's part of the limit**: after every turn the context meter adds the agent's share
   of its account's shortest limit window, e.g. `⛁ 28% 72k · ~12% of 5h` (its sessions' tokens in
   the window, subagents included and cache reads left out, over the account's, times the window's

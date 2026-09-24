@@ -85,7 +85,30 @@ label = "OpenCode"
 dir = "~/.local/share/opencode"   # holds opencode.db
 # enabled = false         # turns an account off everywhere (tab bar, dashboard, refresh)
 
-# Grok is never auto-enabled because it reads the Grok CLI's stored sign-in token.
+# Copilot and Amp are found automatically too: Copilot's limits come from `gh api` (the account
+# the GitHub CLI is signed in to), Amp's from `amp usage`.
+# [[profiles]]
+# id = "copilot"
+# provider = "copilot"
+# dir = "~/.copilot"      # COPILOT_HOME
+#
+# [[profiles]]
+# id = "amp"
+# provider = "amp"
+# dir = "~/.local/share/amp"
+
+# Gemini, Cursor and Grok are never auto-enabled, because they read the tool's stored sign-in
+# token (held in memory for the request, never refreshed or written).
+# [[profiles]]
+# id = "gemini"
+# provider = "gemini"
+# dir = "~/.gemini"       # Google sign-in on a Code Assist plan; token history works with any sign-in
+#
+# [[profiles]]
+# id = "cursor"
+# provider = "cursor"
+# dir = "~/Library/Application Support/Cursor/User/globalStorage"   # ~/.config/Cursor/... on Linux
+#
 # [[profiles]]
 # id = "grok"
 # provider = "grok"

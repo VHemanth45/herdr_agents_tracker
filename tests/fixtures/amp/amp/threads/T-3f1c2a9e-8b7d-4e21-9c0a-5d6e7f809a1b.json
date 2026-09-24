@@ -1,0 +1,9 @@
+{"v":42,"id":"T-3f1c2a9e-8b7d-4e21-9c0a-5d6e7f809a1b","created":1790000000000,
+ "env":{"initial":{"trees":[{"uri":"file:///Users/demo/code/app"}],"platform":{"os":"darwin","client":"CLI"}}},
+ "messages":[
+  {"role":"user","messageId":0,"content":[{"type":"text","text":"hi"}]},
+  {"role":"assistant","messageId":1,"state":{"type":"complete"},"content":[],
+   "usage":{"model":"claude-haiku-4-5-20251001","maxInputTokens":200000,"inputTokens":10,"outputTokens":178,
+            "cacheCreationInputTokens":986,"cacheReadInputTokens":11372,"totalInputTokens":12368,"timestamp":"2026-09-21T11:42:10.652Z"}},
+  {"role":"assistant","messageId":3,"state":{"type":"complete"},"content":[],
+   "usage":{"model":"claude-sonnet-4-5","inputTokens":5,"outputTokens":40,"cacheCreationInputTokens":null,"cacheReadInputTokens":12000,"totalInputTokens":12005}}]}

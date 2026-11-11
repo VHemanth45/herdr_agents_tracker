@@ -2,7 +2,8 @@
 
 cache.json holds one entry per account profile. Freshness (`updated_at`: when the data was
 observed) and the last attempt (`state`, `error`, `checked_at`) are recorded separately, so a
-failed refresh keeps the last good snapshot visible, marked stale once it ages.
+failed refresh keeps the last good snapshot visible, marked stale once it ages. A refresh that
+fell back to a secondary source is "degraded" and keeps the live read's error.
 Only the collector writes, while holding refresh.lock; readers never block.
 """
 
@@ -94,9 +95,14 @@ def apply(entry, result, now, interval):
         delay = result.retry_after or min(interval * 2 ** failures, MAX_BACKOFF)
         entry.update(state=result.state, error=result.message, failures=failures, next_at=now + delay)
     else:
-        entry.update(result)
-        entry.update(state="ok", error=None, failures=0, next_at=now + interval,
-                     updated_at=result.get("observed_at") or now)
+        # A snapshot with an `error` is a fallback (e.g. a session log) after the live read failed:
+        # state "degraded" keeps that error, and the fallback replaces only older data. No backoff,
+        # so a refresh after the agent's next turn can still pick up its newer snapshot.
+        observed = result.get("observed_at") or now
+        if not result.get("error") or observed >= (entry.get("updated_at") or 0):
+            entry.update(result, updated_at=observed)
+        entry.update(state="degraded" if result.get("error") else "ok", error=result.get("error"),
+                     failures=0, next_at=now + interval)
     return entry
 
 

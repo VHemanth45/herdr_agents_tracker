@@ -62,6 +62,7 @@ class Claude(IsolatedTest):
         (directory / ".claude.json").write_text((FIXTURES / "claude/claude.json").read_text())
         snap = claude.limits(self.profile(directory), self.state)  # only Claude's own cache exists
         self.assertEqual((snap["source"], snap["plan"]), ("Claude Code usage cache", "Max 5x"))
+        self.assertEqual(snap["error"], err.exception.message)  # cached as degraded, with the reason
         self.assertEqual([w["label"] for w in snap["windows"]], ["5h", "7d"])  # null sonnet window dropped
         claude.record_statusline("claude", load("claude/statusline-input.json"), self.state, now=time.time())
         self.assertEqual(claude.limits(self.profile(directory), self.state)["source"], "Claude Code statusline")
@@ -125,6 +126,13 @@ class Codex(IsolatedTest):
         self.assertEqual(snap["source"], "Codex session log (last recorded turn)")
         self.assertEqual([(w["label"], w["used"]) for w in snap["windows"]], [("5h", 12.0), ("7d", 55.0)])
         self.assertEqual(snap["plan"], "Plus")
+        self.assertIn("timed out", snap["error"])  # why the live read failed is kept
+
+    def test_failed_live_read_falls_back_with_its_error(self):
+        os.environ["FAKE_CODEX_MODE"] = "offline"
+        snap = codex.limits(self.profile, self.state)
+        self.assertEqual(snap["source"], "Codex session log (last recorded turn)")
+        self.assertEqual(snap["error"], "codex: failed to fetch codex rate limits: error sending request")
 
     def test_missing_cli_without_logs_is_unavailable(self):
         with mock.patch.object(codex, "find_cli", return_value=None), \

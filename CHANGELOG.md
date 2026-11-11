@@ -12,6 +12,10 @@ before 1.0, a minor bump may change config keys or state layout, and the release
   and Cursor read the tool's stored sign-in, so they need a `[[profiles]]` entry.
 - **Fix**: a finished agent turn no longer fails when Herdr can't report the pane's processes
   (missing, hung or restarting). This also made the tests fail on CI.
+- **Fix**: when Codex's or Claude Code's live limit read fails and the last recorded snapshot is
+  used instead, the account is now `degraded` (in `status --json` and diagnostics) with the
+  failure's error, and the dashboard says `LIVE READ FAILED: <why>` instead of showing old
+  numbers as healthy. That fallback also no longer replaces newer data already shown (#2).
 
 - **Each agent's part of the limit**: after every turn the context meter adds the agent's share
   of its account's shortest limit window, e.g. `⛁ 28% 72k · ~12% of 5h` (its sessions' tokens in

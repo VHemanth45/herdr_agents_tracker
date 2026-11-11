@@ -95,7 +95,7 @@ def limits(profile, state_dir):
         found = [s for s in (quick(profile, state_dir), from_usage_cache(account)) if s]
         if not found:
             raise exc
-        best = max(found, key=lambda s: s["observed_at"])
+        best = max(found, key=lambda s: s["observed_at"]) | {"error": exc.message}
     best["plan"] = plan_label(oauth) or best.get("plan")
     return best
 

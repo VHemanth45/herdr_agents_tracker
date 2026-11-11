@@ -68,7 +68,7 @@ def limits(profile, state_dir):
     except ProviderError as exc:
         fallback = rollout_limits(home) if exc.state != "auth" else None
         if fallback:
-            return fallback
+            return fallback | {"error": exc.message}  # cached as "degraded", with the reason
         raise
     account = res["account/read"].get("account")
     if not account:

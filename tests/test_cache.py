@@ -57,6 +57,20 @@ class Cache(IsolatedTest):
         recovered = cache.apply(again, dict(GOOD, observed_at=NOW + 2000), NOW + 2000, 300)
         self.assertEqual((recovered["state"], recovered["error"], recovered["failures"]), ("ok", None, 0))
 
+    def test_fallback_snapshot_is_degraded_and_never_replaces_newer_data(self):
+        live = cache.apply(None, dict(GOOD), NOW, 300)
+        old = {"windows": [model.window_for(300, 12, NOW + 3600)], "source": "session log",
+               "observed_at": NOW - 86400, "error": "codex: offline"}
+        kept = cache.apply(live, old, NOW + 300, 300)
+        self.assertEqual((kept["state"], kept["error"], kept["failures"]), ("degraded", "codex: offline", 0))
+        self.assertEqual((kept["windows"], kept["source"], kept["updated_at"]), (GOOD["windows"], "test", NOW))
+        self.assertEqual(kept["next_at"], NOW + 600)  # no backoff: the next turn's snapshot can still come in
+        newer = cache.apply(kept, dict(old, observed_at=NOW + 500), NOW + 600, 300)
+        self.assertEqual((newer["state"], newer["source"], newer["updated_at"]), ("degraded", "session log", NOW + 500))
+        self.assertEqual(newer["windows"], old["windows"])
+        recovered = cache.apply(newer, dict(GOOD, observed_at=NOW + 900), NOW + 900, 300)
+        self.assertEqual((recovered["state"], recovered["error"]), ("ok", None))
+
     def test_refresh_is_requested_only_when_due_and_idle(self):
         profiles = [{"id": "p", "enabled": True}]
         later = time.time() + 1000  # well past any lock-file timestamp, so the debounce does not apply
@@ -102,6 +116,17 @@ dir = "{self.tmp}/bad"
         self.assertEqual(entries["bad"]["state"], "error")
         self.assertNotIn("abcdefghijklmnop", entries["bad"]["error"])  # redacted
         self.assertNotIn("abcdefghijklmnop", (self.state / "collector.log").read_text())
+
+    def test_a_fallback_is_saved_as_degraded_with_the_live_error(self):
+        snap = dict(GOOD, error="codex: request failed, token sk-abcdefghijklmnop")
+        with mock.patch("usage_tracker.providers.codex.limits", return_value=snap), \
+                mock.patch("usage_tracker.providers.grok.limits", return_value=dict(GOOD)):
+            collect.refresh(config.load(), self.state, force=True, with_history=False)
+        entry = cache.load(self.state)["good"]
+        self.assertEqual((entry["state"], entry["failures"]), ("degraded", 0))
+        self.assertIn("<redacted>", entry["error"])
+        self.assertNotIn("abcdefghijklmnop", entry["error"])
+        self.assertIn("good: degraded (fallback test): codex: request failed", (self.state / "collector.log").read_text())
 
     def test_a_finished_turn_refreshes_that_provider_unless_it_is_backing_off(self):
         cfg = config.load()

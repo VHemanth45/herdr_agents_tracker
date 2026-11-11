@@ -162,9 +162,10 @@ class Dashboard:
             lines += ["", [(f"{title}", "bold"), (f"   {self.freshness(entry)}", "dim")]]
             for w in entry.get("windows") or []:
                 lines += self.window_lines(w, entry, bar, width, self.readings.get((p["id"], w["id"])))
-            if entry.get("state") in ("auth", "unavailable", "error") and entry.get("error"):
+            if entry.get("state") in ("auth", "unavailable", "error", "degraded") and entry.get("error"):
                 style = "bad" if entry["state"] == "auth" else "warn"
-                label = {"auth": "SIGN-IN NEEDED", "unavailable": "UNAVAILABLE", "error": "LAST REFRESH FAILED"}
+                label = {"auth": "SIGN-IN NEEDED", "unavailable": "UNAVAILABLE", "error": "LAST REFRESH FAILED",
+                         "degraded": "LIVE READ FAILED"}
                 lines.append([(f"  {label[entry['state']]}: ", style), (entry["error"], "")])
             if entry.get("estimated"):
                 lines.append([("  Estimate from local records only; open the provider's own usage page for exact values.", "dim")])

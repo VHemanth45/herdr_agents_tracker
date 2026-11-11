@@ -71,6 +71,16 @@ dir = "{self.tmp}/codex"
             self.assertIn(expected, body)
         self.assertIn("Usage", screen.text())
 
+    def test_a_fallback_says_why_the_data_is_old(self):
+        entries = cache.load(self.state)
+        entries["codex"] |= {"state": "degraded", "error": "codex: failed to fetch codex rate limits",
+                             "source": "Codex session log (last recorded turn)"}
+        cache.save(self.state, entries)
+        board, _ = self.render(60, 140)
+        body = "\n".join("".join(text for text, _ in line) if isinstance(line, list) else line for line in board.body(140))
+        self.assertIn("STALE · updated 2h00m ago", body)
+        self.assertIn("LIVE READ FAILED: codex: failed to fetch codex rate limits", body)
+
     def test_limit_bars_are_smooth_and_colored_by_level(self):
         board, _ = self.render(60, 140)
         line = next(l for l in board.body(70) if isinstance(l, list) and " 92% used" in "".join(t for t, _ in l))

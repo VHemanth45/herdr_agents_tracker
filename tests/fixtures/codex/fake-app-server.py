@@ -16,5 +16,7 @@ for line in sys.stdin:
     elif msg.get("method") == "account/rateLimits/read":
         if mode == "auth-error":
             print(json.dumps({"id": msg["id"], "error": {"code": -32000, "message": "401 Unauthorized: please log in"}}), flush=True)
+        elif mode == "offline":
+            print(json.dumps({"id": msg["id"], "error": {"code": -32000, "message": "failed to fetch codex rate limits: error sending request"}}), flush=True)
         else:
             print(json.dumps({"id": msg["id"], "result": limits}), flush=True)

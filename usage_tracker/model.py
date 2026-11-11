@@ -3,6 +3,7 @@
 Limit snapshot (one per account profile), as returned by an adapter's limits():
     {"windows": [window, ...], "plan": "Max 5x", "source": "codex app-server",
      "observed_at": 1790000000.0, "estimated": False}
+A snapshot from a fallback source (the live read failed) also carries that failure's "error".
 
 Limit window (plain dict so snapshots serialize straight into the JSON cache):
     {"id": "weekly", "label": "7d", "used": 63.0, "resets_at": 1790574924, "minutes": 10080}

@@ -37,7 +37,8 @@ def log(state_dir, message):
 
 def fetch(profile, state_dir):
     try:
-        return PROVIDERS[profile["provider"]].limits(profile, state_dir)
+        snap = PROVIDERS[profile["provider"]].limits(profile, state_dir)
+        return snap | {"error": redact(snap["error"])} if snap.get("error") else snap
     except ProviderError as exc:
         return ProviderError(exc.state, redact(exc.message), exc.retry_after)
     except Exception as exc:  # an adapter bug must not take the other providers down
@@ -67,6 +68,8 @@ def refresh(cfg, state_dir, force=False, with_history=True, providers=None):
             if isinstance(result, ProviderError):
                 log(state_dir, f"{profile['id']}: {result.state}: {result.message}")
             else:
+                if result.get("error"):
+                    log(state_dir, f"{profile['id']}: degraded (fallback {result.get('source')}): {result['error']}")
                 record_limits(profile, result, state_dir, now)
         known = {p["id"] for p in cfg["profiles"]}
         cache.save(state_dir, {k: v for k, v in entries.items() if k in known})

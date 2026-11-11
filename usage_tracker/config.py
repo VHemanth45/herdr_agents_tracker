@@ -8,7 +8,8 @@ from pathlib import Path
 from . import PLUGIN_ID
 
 DEFAULTS = {
-    "status": {"order": [], "format": "compact", "window": "max", "max_width": 120, "bar": "blocks", "bar_width": 10},
+    "status": {"order": [], "format": "compact", "window": "max", "max_width": 120, "bar": "blocks", "bar_width": 10,
+               "percentage": "used"},
     "refresh": {"interval_seconds": 300, "stale_seconds": 1800},
     "alerts": {"thresholds": [80, 95], "on_reset": True},
     "context": {"icon": "⛁", "share": True},

@@ -200,6 +200,31 @@ class StatusLine(unittest.TestCase):
         self.assertEqual(self.line(profiles, entries, bar="color", bar_width="wide"),  # bad value: default width
                          "Claude 🟩⬛⬛⬛⬛ 17% 4h41m   Codex 🟩🟩🟩⬛⬛ 66% 1m")
 
+    def test_remaining_shows_what_is_left_with_the_bar_filled_by_it(self):
+        codex = [profile("codex", "codex")]
+        nine = {"codex": entry(model.window_for(10080, 9, NOW + 5 * 86400 + 23 * 3600))}
+        self.assertEqual(self.line(codex, nine, bar="blocks"), "Codex █░░░░░░░░░ 9% 5d23h")  # default: used
+        self.assertEqual(self.line(codex, nine, bar="blocks", percentage="remaining"), "Codex █████████░ 91% left 5d23h")
+        self.assertEqual(self.line(codex, nine, bar="blocks", percentage="bogus"), "Codex █░░░░░░░░░ 9% 5d23h")
+        # Every window says "left"; compact still picks the most used one (the least left).
+        entries = {"claude": entry(FIVE, WEEK, FABLE)}
+        self.assertEqual(self.line([profile("claude")], entries, format="detailed", percentage="remaining"),
+                         "Claude 83% left 4h41m | 41% left 2d5h | 100% left Fable")
+        self.assertEqual(self.line([profile("claude")], entries, percentage="remaining"), "Claude 41% left 2d5h")
+        # Colors still follow % used, and only an untouched limit fills the whole bar.
+        self.assertEqual(fmt.bar(80, 10, "color", left=True), "🟨⬛⬛⬛⬛")
+        self.assertEqual(fmt.bar(0, 5, "blocks", left=True), "█████")
+        self.assertEqual(fmt.bar(100, 5, "blocks", left=True), "░░░░░")
+        # Pace, estimates and the split bar follow suit.
+        fast = {"codex": entry(model.window_for(10080, 88, NOW + 138 * 3600))}
+        self.assertEqual(self.line(codex, fast, percentage="remaining"), "Codex 12% left 5d18h (0% in 4h05m)")
+        oc = {"oc": entry(model.window_for(300, 21), estimated=True)}
+        self.assertEqual(self.line([profile("oc", "opencode", "OpenCode")], oc, percentage="remaining"),
+                         "OpenCode ~79% left (5h)")
+        split = [profile("claude", format="split")]
+        self.assertEqual(self.line(split, {"claude": entry(FIVE, WEEK)}, bar="blocks", bar_width=8, percentage="remaining"),
+                         "Claude ███▀▀▀▀░ 83% left 4h41m | 41% left 2d5h")
+
     def test_split_bar_shows_two_windows_in_one_row(self):
         self.assertEqual(fmt.split_bar(14, 18, 10), "█▄░░░░░░░░")
         self.assertEqual(fmt.split_bar(60, 20, 10), "██▀▀▀▀░░░░")  # top half 60%, bottom half 20%

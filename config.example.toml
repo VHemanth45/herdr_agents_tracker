@@ -20,6 +20,9 @@ window = "max"
 # "none" hides it.
 bar = "blocks"
 bar_width = 10           # columns (an emoji square takes two)
+# "used" (the default) shows % used; "remaining" shows what is left instead, with the bar filled
+# by it (Codex █████████░ 91% left 5d23h). Alerts and --check still count % used.
+percentage = "used"
 # Room for all accounts together, in columns. Herdr hides the whole summary when it does not fit
 # beside the tabs, so with less room model limits (Fable), then reset times, then bars are left
 # out, and only then is text cut with "…". Short labels ("P", "W") leave room for more detail.

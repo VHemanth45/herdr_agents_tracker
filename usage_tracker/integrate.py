@@ -437,6 +437,8 @@ def starter_config(profiles):
              '# "color" (🟩 🟨 🟥 squares; the tab bar cannot color text) or "none". Width in columns.',
              'bar = "blocks"',
              "bar_width = 10",
+             '# "used" shows % used; "remaining" shows what is left ("91% left"), the bar filled by it.',
+             'percentage = "used"',
              "# Room for all accounts together, in columns; with less, details are left out.",
              "max_width = 120", "",
              "[alerts]",

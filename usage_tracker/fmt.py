@@ -33,15 +33,17 @@ def cells(used, width):
     return filled if used >= 100 else min(filled, width - 1)
 
 
-def bar(used, width, style):
-    """Progress bar `width` columns wide: "blocks" (███░░), "color" (emoji squares), else none."""
+def bar(used, width, style, left=False):
+    """Progress bar `width` columns wide: "blocks" (███░░), "color" (emoji squares), else none.
+    With left, the filled part is what remains; colors still follow the % used."""
     if used is None or width < 1 or style not in ("color", "blocks"):
         return ""
+    fill = 100 - used if left else used
     if style == "color":
         squares = width // 2  # emoji are two columns wide
-        filled = cells(used, squares)
+        filled = cells(fill, squares)
         return BAR_SQUARES[level(used)] * filled + BAR_EMPTY * (squares - filled)
-    filled = cells(used, width)
+    filled = cells(fill, width)
     return "█" * filled + "░" * (width - filled)
 
 
@@ -153,14 +155,16 @@ def trend(readings, start, end, now, width):
     return "".join(out)
 
 
-def window_text(w, entry, now, meter="", when=True, pace=False):
+def window_text(w, entry, now, meter="", when=True, pace=False, left=False):
     """"18% 2h12m": used, then time until reset; a model's own limit is named instead: "0% Fable".
-    With pace, "(100% in 40m)" follows when the limit runs out before its reset at this rate."""
+    With left, what remains instead: "82% left 2h12m". With pace, "(100% in 40m)" (left: "(0% in 40m)")
+    follows when the limit runs out before its reset at this rate."""
     base, _, scope = w["label"].partition(" ")
     when = when and (scope or (duration(w["resets_at"] - now) if w.get("resets_at") else f"({base})"))
     eta = (forecast(w, now) or (0, None))[1] if pace else None
-    return f"{meter + ' ' if meter else ''}{'~' if entry.get('estimated') else ''}{pct(w['used'])}" + \
-        (f" {when}" if when else "") + (f" (100% in {duration(eta)})" if eta is not None else "")
+    value = f"{pct(100 - w['used'])} left" if left else pct(w["used"])
+    return f"{meter + ' ' if meter else ''}{'~' if entry.get('estimated') else ''}{value}" + \
+        (f" {when}" if when else "") + (f" ({0 if left else 100}% in {duration(eta)})" if eta is not None else "")
 
 
 def entry_text(profile, name, entry, cfg, now, detail=0):
@@ -177,20 +181,22 @@ def entry_text(profile, name, entry, cfg, now, detail=0):
     mode, when = profile.get("format") or status["format"], detail < 2
     age = now - (entry.get("updated_at") or 0)
     pace = when and age <= cfg["refresh"]["stale_seconds"]  # no forecast from old data
+    left = status.get("percentage") == "remaining"  # display only: alerts and forecasts stay in % used
     pair = [next((w for w in live if w["id"] == wid), None) for wid in ("session", "weekly")]
     if mode == "split" and all(pair):
         # One bar for both windows: the top half is the 5-hour window, the bottom half the weekly
         # one. Other current windows (e.g. a model's own weekly limit) follow without a bar.
-        meter = split_bar(pair[0]["used"], pair[1]["used"], size) if style in ("blocks", "color") else ""
+        top, bottom = (100 - w["used"] if left else w["used"] for w in pair)
+        meter = split_bar(top, bottom, size) if style in ("blocks", "color") else ""
         shown = pair + ([w for w in live if w not in pair] if detail < 1 else [])
-        text = f"{name} {meter + ' ' if meter else ''}" + " | ".join(window_text(w, entry, now, when=when, pace=pace)
-                                                                     for w in shown)
+        text = f"{name} {meter + ' ' if meter else ''}" + " | ".join(
+            window_text(w, entry, now, when=when, pace=pace, left=left) for w in shown)
     else:  # "split" without both windows falls back to compact
         shown = live if mode == "detailed" else [w for w in [pick(windows, profile.get("window") or status["window"], now)] if w]
         if detail >= 1 and len(shown) > 1:
             shown = [w for w in shown if " " not in w["label"]] or shown[:1]  # drop limits scoped to a model
         # One bar, for the first window (the 5-hour one when there is one); the others are text.
-        texts = [window_text(w, entry, now, bar(w["used"], size, style) if i == 0 else "", when, pace)
+        texts = [window_text(w, entry, now, bar(w["used"], size, style, left) if i == 0 else "", when, pace, left)
                  for i, w in enumerate(shown)]
         text = f"{name} " + (" | ".join(texts) if shown else "-- (reset)")
     if age > cfg["refresh"]["stale_seconds"]:

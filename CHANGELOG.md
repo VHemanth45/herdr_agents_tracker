@@ -5,6 +5,9 @@ before 1.0, a minor bump may change config keys or state layout, and the release
 
 ## Unreleased
 
+- **% left in the tab bar**: `status.percentage = "remaining"` shows what is left of each limit
+  (`█████████░ 91% left 5d23h`), with the bar filled by it and the pace note as `(0% in 40m)`.
+  The default stays `used`; alerts, `--check` and `--json` keep % used (#1).
 - **Four more providers**: GitHub Copilot CLI (monthly premium requests via `gh api`, token
   history from its session records), Amp (Amp Free and subscription usage via `amp usage`, history
   from thread files), and opt-in Gemini CLI (daily quota per model, history from session files)

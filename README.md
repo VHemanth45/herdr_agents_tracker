@@ -265,6 +265,7 @@ lists every option with comments.
 | `label`, `icon` | provider name | What the tab bar shows. With a Nerd Font, `""` / `""` are the Claude / OpenAI logos. |
 | `status.format` | `compact` | `compact` (one window), `detailed` (all windows) or `split` (5h and weekly in one bar). Also per profile. |
 | `status.bar`, `status.bar_width` | `blocks`, 10 | `blocks`, `color` (coloured squares) or `none`; width in columns. |
+| `status.percentage` | `used` | `remaining` shows what is left (`91% left`) and fills the bar with it. Alerts, `--check` and `--json` still use % used. |
 | `status.order`, `status.window` | all, `max` | Which accounts appear, and which window `compact` shows. |
 | `status.max_width` | 120 | Room for the whole summary; detail is dropped to fit. |
 | `alerts.thresholds` | `[80, 95]` | % used that triggers a notification; `[]` turns alerts off. |
